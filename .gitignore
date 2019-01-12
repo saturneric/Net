@@ -34,3 +34,4 @@
 # Custom
 build
 *.xcodeproj
+Net.xcodeproj/project.pbxproj
