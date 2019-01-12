@@ -35,3 +35,4 @@
 build
 *.xcodeproj
 Net.xcodeproj/project.pbxproj
+*.pbxproj
