@@ -10,7 +10,9 @@
 #define net_hpp
 
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
+#include <vector>
 #include <string>
 
 #include <sys/types.h>
@@ -21,6 +23,7 @@
 #include <netdb.h>
 
 using std::string;
+using std::vector;
 
 class Addr{
 public:
@@ -162,14 +165,6 @@ public:
     }
 };
 
-class UProcess{
-public:
-    Addr addr;
-    int token;
-    UProcess(Addr t_addr, int token){
-        addr = t_addr;
-        this->token = token;
-    }
-};
+
 
 #endif /* net_hpp */

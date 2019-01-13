@@ -6,21 +6,19 @@
 //  Copyright © 2019年 Bakantu. All rights reserved.
 //
 
-#include "net.hpp"
+#include "net.h"
+#include "cpart.h"
 
-void process(void *arg){
-    
-}
+
+
 
 int main(void){
-    char ip[] = "127.0.0.1";
-    Socket server("127.0.0.1",9048,true,false);
-    printf("Start to listen\n");
-    Addr t_addr;
-    string str = server.PacketRecv(t_addr);
-    if(str == "request token"){
-        
-    }
+    CPart ncp("process");
+    ncp.setArgsType({0,0}, {0});
+    ncp.addArgsInt(2);
+    ncp.addArgsInt(5);
+    ncp.Run();
+    
     return 0;
 }
 
