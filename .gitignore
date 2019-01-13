@@ -36,3 +36,8 @@ build
 *.xcodeproj
 Net.xcodeproj/project.pbxproj
 *.pbxproj
+*.map
+PCS
+*.pbxproj
+*.pbxproj
+Net.xcodeproj/project.pbxproj

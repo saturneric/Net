@@ -19,15 +19,26 @@ using std::string;
 #define PCSFUNC_DEFINE(name) extern "C" int name(vector<void *> args_in,vector<void *> *args_out)
 #define GET_ARGS(type) CPart::popArg<type>(args_in)
 #define ADD_ARGS(type,value) CPart::addArg<type>(args_in, value);
+#define INT 0
+#define DOUBLE 1
 #define SUCCESS 0
 #define FAIL 1
 
 typedef int(*PCSFUNC)(vector<void *>,vector<void *> *);
 
+class CPart;
+
+class Depends{
+public:
+    CPart *t_cpart;
+    vector<int> args;
+};
+
 class CPart{
 public:
     vector<int> fargs_in, fargs_out;
     vector<void *> args_in, args_out;
+    vector<Depends> depends;
     int (*func)(vector<void *>,vector<void *> *);
     void *handle;
     string src_path,name,libname;
@@ -38,7 +49,7 @@ public:
     CPart(string src_path,string name){
         this->src_path = src_path;
         this->name = name;
-        system(("g++ -fPIC -shared -std=c++11 -o lib"+name+".so "+src_path).data());
+        system(("g++ -fPIC -shared -std=c++11 -o ./Libs/lib"+name+".so "+src_path).data());
         this->libname = "lib"+name+".so";
         this->handle = dlopen(this->libname.data(), RTLD_LAZY | RTLD_GLOBAL);
         this->func = (PCSFUNC) dlsym(this->handle, this->name.data());
@@ -92,5 +103,7 @@ public:
         return *p_value;
     }
 };
+
+
 
 #endif /* cpart_h */

@@ -9,11 +9,15 @@
 #ifndef net_hpp
 #define net_hpp
 
+#include <iostream>
+#include <fstream>
+#include <sstream>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <vector>
 #include <string>
+#include <map>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -22,8 +26,15 @@
 #include <unistd.h>
 #include <netdb.h>
 
+#include "cpart.h"
+
 using std::string;
 using std::vector;
+using std::map;
+using std::pair;
+using std::ifstream;
+using std::cout;
+using std::endl;
 
 class Addr{
 public:
@@ -165,6 +176,142 @@ public:
     }
 };
 
+class CThread{
+public:
+    
+};
 
+class CMap{
+public:
+    map<string,CPart *> cparts;
+    string path;
+    CMap(string path){
+        ifstream map;
+        map.open(path+"/pcs.map");
+        this->path = path;
+        if(map.good()){
+            string line;
+            map>>line;
+            if(line == "#PCS"){
+                BuildCPart(map);
+            }
+            map>>line;
+            if(line == "#DEPEND"){
+                BuildConnection(map);
+            }
+            
+        }
+    }
+    void BuildCPart(ifstream &map){
+        string line;
+        map>>line;
+        while(line!="END"){
+            unsigned long qs = line.find('(',0), qe = line.find(')',0);
+            string name = line.substr(qs+1,qe-qs-1);
+            qs = line.find('<',0);
+            qe = line.find('>',0);
+            string src_name = line.substr(qs+1,qe-qs-1);
+            
+            //std::cout<<name<<" "<<src_name<<std::endl;
+            CPart *ncp = new CPart(path+"/"+src_name,name);
+            this->cparts.insert(pair<string,CPart *>(name,ncp));
+            
+            vector<int>fargs_in,fargs_out;
+            map>>line;
+            if(line[0] == '>'){
+                fargs_in = BuidArgs(line);
+            }
+            map>>line;
+            if(line[0] == '>'){
+                fargs_out = BuidArgs(line);
+            }
+            ncp->setArgsType(fargs_in, fargs_out);
+            map>>line;
+        }
+    }
+    
+    vector<int> BuidArgs(string &line){
+        vector<int> fargs;
+        unsigned long qs,qe;
+        qs = line.find('[',0);
+        qe = line.find(']',0);
+        unsigned long idx = qs;
+        while(idx < qe){
+            unsigned long ts,te;
+            ts = line.find(':',idx);
+            te = line.find(',',ts);
+            if(te == string::npos){
+                te = qe;
+            }
+            string type = line.substr(ts+1,te-ts-1);
+            if(type == "int")
+                fargs.push_back(INT);
+            else if(type == "double")
+                fargs.push_back(DOUBLE);
+            
+            idx = te;
+        }
+        return fargs;
+    }
+    
+    void BuildConnection(ifstream &map){
+        string line;
+        map>>line;
+        while(line != "END"){
+            unsigned long qs = line.find('(',0), qe = line.find(')',0);
+            string name = line.substr(qs+1,qe-qs-1);
+            CPart *p_ncp = cparts.find(name)->second;
+            unsigned long idx = line.find('{',qe);
+            unsigned long ss = line.find('}',idx);
+            unsigned long ts, te;
+            while(idx < ss){
+                ts = line.find('(',idx);
+                te = line.find(']',ts);
+                if(te == string::npos){
+                    te = ss;
+                }
+                string item = line.substr(ts,te-ts+1);
+                //cout<<item<<endl;
+                idx = te+1;
+                p_ncp->depends.push_back(ReadItem(item));
+            }
+            map>>line;
+        }
+        
+    }
+    
+    Depends ReadItem(string item){
+        Depends dep;
+        unsigned long qs = item.find('(',0), qe = item.find(')',qs);
+        string name = item.substr(qs+1,qe-qs-1);
+        dep.t_cpart = cparts.find(name)->second;
+        unsigned long idx = item.find('[',0),ss = item.find(']',idx);
+        unsigned long ts, te;
+        while(idx < ss){
+            ts = idx;
+            te = item.find(',',ts+1);
+            if(te == string::npos){
+                te = ss;
+            }
+            string arg = item.substr(ts+1,te-ts-1);
+            std::stringstream sstr;
+            int darg;
+            sstr<<arg;
+            sstr>>darg;
+            dep.args.push_back(darg);
+            idx = te;
+        }
+        return dep;
+    }
+    
+};
+
+struct pcs_result{
+    char *name[16];
+    uint32_t in_size;
+    char *in_buff;
+    uint32_t out_size;
+    char *out_buff;
+};
 
 #endif /* net_hpp */

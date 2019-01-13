@@ -13,11 +13,7 @@
 
 
 int main(void){
-    CPart ncp("process");
-    ncp.setArgsType({0,0}, {0});
-    ncp.addArgsInt(2);
-    ncp.addArgsInt(5);
-    ncp.Run();
+    CMap map("./PCS");
     
     return 0;
 }
