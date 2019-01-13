@@ -8,16 +8,19 @@
 
 #include "net.hpp"
 
-void process(class Socket &server,int nsfd,struct sockaddr_in c_addr){
-    server.Send(nsfd, "ORDER");
+void process(void *arg){
+    
 }
 
 int main(void){
     char ip[] = "127.0.0.1";
-    Socket server("127.0.0.1",9048,true);
-    server.Listen(10,process);
+    Socket server("127.0.0.1",9048,true,false);
     printf("Start to listen\n");
-    server.Accept();
+    Addr t_addr;
+    string str = server.PacketRecv(t_addr);
+    if(str == "request token"){
+        
+    }
     return 0;
 }
 
