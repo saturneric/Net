@@ -10,6 +10,7 @@
 		9221DA1121EB5FB8007310A7 /* net.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9221DA1021EB5FB8007310A7 /* net.cpp */; };
 		925A13A621EC68D500CBD427 /* cpart.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 925A13A421EC67C900CBD427 /* cpart.cpp */; };
 		925A13A921EC973000CBD427 /* cmap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 925A13A721EC973000CBD427 /* cmap.cpp */; };
+		925A13AD21EC9DB900CBD427 /* cthread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 925A13AB21EC9DB900CBD427 /* cthread.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -33,6 +34,8 @@
 		925A13A421EC67C900CBD427 /* cpart.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = cpart.cpp; sourceTree = "<group>"; };
 		925A13A721EC973000CBD427 /* cmap.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = cmap.cpp; sourceTree = "<group>"; };
 		925A13A821EC973000CBD427 /* cmap.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cmap.h; sourceTree = "<group>"; };
+		925A13AB21EC9DB900CBD427 /* cthread.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = cthread.cpp; sourceTree = "<group>"; };
+		925A13AC21EC9DB900CBD427 /* cthread.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cthread.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -70,6 +73,7 @@
 				9221DA1621EB8C02007310A7 /* pcs.map */,
 				925A13A421EC67C900CBD427 /* cpart.cpp */,
 				925A13A721EC973000CBD427 /* cmap.cpp */,
+				925A13AB21EC9DB900CBD427 /* cthread.cpp */,
 			);
 			name = Net;
 			sourceTree = "<group>";
@@ -77,6 +81,7 @@
 		925A13AA21EC989500CBD427 /* include */ = {
 			isa = PBXGroup;
 			children = (
+				925A13AC21EC9DB900CBD427 /* cthread.h */,
 				9221DA0F21EB5FB8007310A7 /* net.h */,
 				9221DA1421EB62F6007310A7 /* cpart.h */,
 				925A13A821EC973000CBD427 /* cmap.h */,
@@ -143,6 +148,7 @@
 				9221DA1121EB5FB8007310A7 /* net.cpp in Sources */,
 				925A13A621EC68D500CBD427 /* cpart.cpp in Sources */,
 				925A13A921EC973000CBD427 /* cmap.cpp in Sources */,
+				925A13AD21EC9DB900CBD427 /* cthread.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

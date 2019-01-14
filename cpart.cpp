@@ -16,7 +16,7 @@
  @param name 计算模块的名字
  @param ffresh 每次建立该结构都重新编译一次源文件
  */
-CPart::CPart(string src_path,string src_name,string name,bool ffresh = true){
+CPart::CPart(string src_path,string src_name,string name,bool ffresh){
     this->src_path = src_path;
     this->name = name;
 //    去掉源文件的后缀
