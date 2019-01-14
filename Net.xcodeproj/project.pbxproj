@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		9221DA1121EB5FB8007310A7 /* net.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9221DA1021EB5FB8007310A7 /* net.cpp */; };
+		925A13A621EC68D500CBD427 /* cpart.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 925A13A421EC67C900CBD427 /* cpart.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -28,6 +29,7 @@
 		9221DA1021EB5FB8007310A7 /* net.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = net.cpp; sourceTree = "<group>"; };
 		9221DA1421EB62F6007310A7 /* cpart.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cpart.h; sourceTree = "<group>"; };
 		9221DA1621EB8C02007310A7 /* pcs.map */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; name = pcs.map; path = build/Debug/PCS/pcs.map; sourceTree = "<group>"; };
+		925A13A421EC67C900CBD427 /* cpart.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = cpart.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -64,6 +66,7 @@
 				9221DA0F21EB5FB8007310A7 /* net.h */,
 				9221DA1421EB62F6007310A7 /* cpart.h */,
 				9221DA1621EB8C02007310A7 /* pcs.map */,
+				925A13A421EC67C900CBD427 /* cpart.cpp */,
 			);
 			name = Net;
 			sourceTree = "<group>";
@@ -125,6 +128,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9221DA1121EB5FB8007310A7 /* net.cpp in Sources */,
+				925A13A621EC68D500CBD427 /* cpart.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

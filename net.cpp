@@ -14,6 +14,12 @@
 
 int main(void){
     CMap map("./PCS");
+    CThread thread(&map);
+    thread.AddArgs<int>("B", 4);
+    thread.AddArgs<double>("B", 8);
+    thread.Analyse();
+    thread.DoLine();
+    cout<<thread.rargs_out.find("B")->second.size()<<endl;
     
     return 0;
 }

@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <vector>
+#include <list>
 #include <string>
 #include <map>
 
@@ -32,6 +33,7 @@ using std::string;
 using std::vector;
 using std::map;
 using std::pair;
+using std::list;
 using std::ifstream;
 using std::cout;
 using std::endl;
@@ -176,11 +178,6 @@ public:
     }
 };
 
-class CThread{
-public:
-    
-};
-
 class CMap{
 public:
     map<string,CPart *> cparts;
@@ -213,7 +210,7 @@ public:
             string src_name = line.substr(qs+1,qe-qs-1);
             
             //std::cout<<name<<" "<<src_name<<std::endl;
-            CPart *ncp = new CPart(path+"/"+src_name,name);
+            CPart *ncp = new CPart(path,src_name,name);
             this->cparts.insert(pair<string,CPart *>(name,ncp));
             
             vector<int>fargs_in,fargs_out;
@@ -222,7 +219,7 @@ public:
                 fargs_in = BuidArgs(line);
             }
             map>>line;
-            if(line[0] == '>'){
+            if(line[0] == '<'){
                 fargs_out = BuidArgs(line);
             }
             ncp->setArgsType(fargs_in, fargs_out);
@@ -264,7 +261,7 @@ public:
             unsigned long idx = line.find('{',qe);
             unsigned long ss = line.find('}',idx);
             unsigned long ts, te;
-            while(idx < ss){
+            while(idx+1 < ss){
                 ts = line.find('(',idx);
                 te = line.find(']',ts);
                 if(te == string::npos){
@@ -304,6 +301,94 @@ public:
         return dep;
     }
     
+};
+
+class CThread{
+public:
+    CMap *p_map;
+    list<CPart *> line;
+    map<string,vector<void *>> rargs;
+    map<string,vector<void *>> rargs_out;
+    map<string,bool> ifsolved;
+    CThread(CMap *tp_map):p_map(tp_map){
+        for(auto k = p_map->cparts.begin(); k != p_map->cparts.end(); k++){
+            vector<void *> args,args_out;
+            rargs.insert(pair<string,vector<void *>>((*k).first,args));
+            rargs_out.insert(pair<string,vector<void *>>((*k).first,args_out));
+        }
+        for(auto k = p_map->cparts.begin(); k != p_map->cparts.end(); k++){
+            ifsolved.insert(pair<string,bool>((*k).first,false));
+        }
+    }
+    template<class T>
+    void AddArgs(string name, T value){
+        auto k = rargs.find(name);
+        T *p_value = new T();
+        *p_value = value;
+        (*k).second.push_back((void *)p_value);
+    }
+    void Analyse(void){
+        for(auto k = p_map->cparts.begin(); k != p_map->cparts.end(); k++){
+            auto cpart_depends = (*k).second->depends;
+            if(cpart_depends.size()){
+                bool if_ok = true;
+                for(auto ditem = cpart_depends.begin(); ditem != cpart_depends.end(); ditem++){
+                    string name = ditem->t_cpart->name;
+                    if(!(ifsolved.find(name)->second)){
+                        if_ok = false;
+                    }
+                }
+                if(if_ok) line.push_back((*k).second);
+            }
+            else{
+                string name = (*k).second->name;
+                if(rargs.find(k->second->name)->second.size() == k->second->fargs_in.size()){
+                    if(ifsolved.find(name)->second == false){
+                        line.push_back(k->second);
+                        cout<<"ADD "<<k->second->name<<endl;
+                    }
+                }
+                
+            }
+        }
+    }
+    void DoLine(void){
+        for(auto pcp = line.begin(); pcp != line.end(); pcp++){
+            string name = (*pcp)->name;
+            
+            cout<<(*pcp)->name<<" "<<(*pcp)->libname<<endl;
+            
+            vector<void *> args = rargs.find(name)->second;
+            vector<void *> &args_out = rargs_out.find(name)->second;
+            vector<int> fargs = (*pcp)->fargs_in;
+            vector<int> fargs_out = (*pcp)->fargs_out;
+            vector<void *> &argso = (*pcp)->args_out;
+            (*pcp)->Clear();
+            int cout = 0;
+            for(auto arg = args.begin(); arg != args.end(); arg++,cout++){
+                if(fargs[cout] == INT){
+                    (*pcp)->addArgsIn<int>(*((int *)(*arg)));
+                }
+                else if(fargs[cout] == DOUBLE){
+                    (*pcp)->addArgsIn<double>(*((double *)(*arg)));
+                }
+            }
+            if(!(*pcp)->Run()){
+                ifsolved.find(name)->second = true;
+                int cout = 0;
+                for(auto argo = argso.begin(); argo != argso.end(); argo++,cout++){
+                    if(fargs_out[cout] == INT){
+                        int *p_value = new int(*((int *)(*argo)));
+                        args_out.push_back((void *)p_value);
+                    }
+                    else if(fargs_out[cout] == DOUBLE){
+                        double *p_value = new double(*((double *)(*argo)));
+                        args_out.push_back((double *)p_value);
+                    }
+                }
+            }
+        }
+    }
 };
 
 struct pcs_result{
