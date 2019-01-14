@@ -55,6 +55,8 @@ CThread::~CThread(){
 void CThread::Analyse(void){
     for(auto k = p_map->cparts.begin(); k != p_map->cparts.end(); k++){
         auto cpart_depends = (*k).second->depends;
+//        如果计算模块已经执行则跳过
+        if(ifsolved.find(k->second->name)->second) continue;
 //        如果该计算模块含有依赖模块
         if(cpart_depends.size()){
             bool if_ok = true;
@@ -80,7 +82,7 @@ void CThread::Analyse(void){
 //                        检查传入传出参数的类型是否匹配
                     for(auto itm = args.begin(); itm != args.end();itm++){
                         if(s_fargs_in[count++] != f_fargs_out[*itm]) throw "type conflict";
-//                            共用内存
+//                            重新分配内存
                         if(f_fargs_out[*itm] == INT){
                             CPart::addArg<int>(&args_in, *((int *)(args_out[*itm])));
                         }
