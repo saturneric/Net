@@ -104,7 +104,6 @@ public:
     static void addArg(vector<void *> *args,T value){
         T *p_value = new T(value);
         if(p_value == nullptr) throw "fail to malloc";
-        *p_value = value;
         args->push_back(p_value);
     }
 //    一般由lib文件中的计算模块调用的从vector中获得参数并释放其占用的内存空间而后返回相关值

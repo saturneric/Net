@@ -16,9 +16,11 @@
  @param name 计算模块的名字
  @param ffresh 每次建立该结构都重新编译一次源文件
  */
-CPart::CPart(string src_path,string src_name,string name,bool ffresh){
+CPart::CPart(string src_path,string src_name,string name,bool ffresh):func(nullptr),handle(nullptr),libargs_in(nullptr),libargs_out(nullptr){
     this->src_path = src_path;
     this->name = name;
+    
+    this->src_name = src_name;
 //    去掉源文件的后缀
     unsigned long qp = src_name.find(".",0);
     if(qp == string::npos){
@@ -26,12 +28,12 @@ CPart::CPart(string src_path,string src_name,string name,bool ffresh){
     }
 //    生成lib文件的文件名
     string t_libname = "lib"+src_name.substr(0,qp)+".so";
-//    如果lib文件存在且不要求每次建立该结构都重新编译一次源文件的话就不执行编译
-    if(!~access(("Libs/"+t_libname).data(), F_OK) || ffresh)
-        BuildSo();
-//    记录必要信息
     this->libname = t_libname;
-    this->src_name = src_name;
+//    如果lib文件存在且不要求每次建立该结构都重新编译一次源文件的话就不执行编译
+    if(!~access(("Libs/"+t_libname).data(), F_OK) || ffresh){
+        BuildSo();
+        GetSo();
+    }
 
 }
 
@@ -104,6 +106,7 @@ void CPart::setArgsType(vector<int> fargs_in, vector<int> fargs_out){
  @return 如果执行成功则返回SUCCESS
  */
 int CPart::Run(void){
+    if(func == nullptr) throw "func is nullptr";
 //    对计算模块传入参数
     unsigned long count = fargs_in.size()-1;
     for(auto k = args_in.rbegin(); k != args_in.rend();k++,count--){

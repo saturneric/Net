@@ -31,6 +31,7 @@ public:
     map<string,bool> ifsolved;
 //    使用图结构管理结构来构造计算进程管理结构
     CThread(CMap *tp_map);
+    ~CThread();
     template<class T>
 //    添加相关计算模块的传入参数
     void AddArgs(string name, T value){
