@@ -159,4 +159,11 @@ Depends CMap::ReadItem(string item){
     return dep;
 }
 
-
+void CMap::MapThrough(CPart *pcp,void (*func)(void *, CPart *),void *args){
+//    调用回调函数
+    func(args,pcp);
+    auto dpds = pcp->depends;
+    for(auto i = dpds.begin(); i != dpds.end(); i++){
+        MapThrough(i->t_cpart, func, args);
+    }
+}

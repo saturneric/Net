@@ -26,6 +26,8 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <netdb.h>
+#include <sys/time.h>
+#include <signal.h>
 
 #include "cpart.h"
 
@@ -178,8 +180,6 @@ public:
     }
 };
 
-
-
 struct pcs_result{
     char *name[16];
     uint32_t in_size;
@@ -187,5 +187,11 @@ struct pcs_result{
     uint32_t out_size;
     char *out_buff;
 };
+
+//设置全局线程时钟
+void setThreadsClock(void);
+//时钟滴答调用函数
+void threadsClock(int);
+
 
 #endif /* net_hpp */

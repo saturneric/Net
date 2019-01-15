@@ -11,6 +11,7 @@
 		925A13A621EC68D500CBD427 /* cpart.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 925A13A421EC67C900CBD427 /* cpart.cpp */; };
 		925A13A921EC973000CBD427 /* cmap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 925A13A721EC973000CBD427 /* cmap.cpp */; };
 		925A13AD21EC9DB900CBD427 /* cthread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 925A13AB21EC9DB900CBD427 /* cthread.cpp */; };
+		92D6CE6921EE4920005AEF3B /* server.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92D6CE6721EE4920005AEF3B /* server.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -36,6 +37,8 @@
 		925A13A821EC973000CBD427 /* cmap.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cmap.h; sourceTree = "<group>"; };
 		925A13AB21EC9DB900CBD427 /* cthread.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = cthread.cpp; sourceTree = "<group>"; };
 		925A13AC21EC9DB900CBD427 /* cthread.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cthread.h; sourceTree = "<group>"; };
+		92D6CE6721EE4920005AEF3B /* server.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = server.cpp; sourceTree = "<group>"; };
+		92D6CE6821EE4920005AEF3B /* server.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = server.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -74,6 +77,7 @@
 				925A13A421EC67C900CBD427 /* cpart.cpp */,
 				925A13A721EC973000CBD427 /* cmap.cpp */,
 				925A13AB21EC9DB900CBD427 /* cthread.cpp */,
+				92D6CE6721EE4920005AEF3B /* server.cpp */,
 			);
 			name = Net;
 			sourceTree = "<group>";
@@ -85,6 +89,7 @@
 				9221DA0F21EB5FB8007310A7 /* net.h */,
 				9221DA1421EB62F6007310A7 /* cpart.h */,
 				925A13A821EC973000CBD427 /* cmap.h */,
+				92D6CE6821EE4920005AEF3B /* server.h */,
 			);
 			name = include;
 			sourceTree = "<group>";
@@ -148,6 +153,7 @@
 				9221DA1121EB5FB8007310A7 /* net.cpp in Sources */,
 				925A13A621EC68D500CBD427 /* cpart.cpp in Sources */,
 				925A13A921EC973000CBD427 /* cmap.cpp in Sources */,
+				92D6CE6921EE4920005AEF3B /* server.cpp in Sources */,
 				925A13AD21EC9DB900CBD427 /* cthread.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

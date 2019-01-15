@@ -8,8 +8,6 @@
 
 #include "cthread.h"
 
-static struct itimerval oitrl, itrl;
-
 list<CThread *> daemon_list = {};
 
 CThread::CThread(CMap *tp_map,int thdnum):p_map(tp_map),idxtid(0),thdnum(thdnum){
@@ -23,6 +21,7 @@ CThread::CThread(CMap *tp_map,int thdnum):p_map(tp_map),idxtid(0),thdnum(thdnum)
 //    构造任务进度列表
     for(auto k = p_map->cparts.begin(); k != p_map->cparts.end(); k++){
         ifsolved.insert(pair<string,bool>((*k).first,false));
+        if_rargs.insert(pair<string,bool>((*k).first,false));
     }
 }
 
@@ -155,8 +154,10 @@ void CThread::Daemon(void){
         pthread_join(cpdt, (void **)&rpv);
 //        根据返回值处理计算任务状态
         if(rpv->rtn == SUCCESS){
-//            标识该计算模块中计算任务的状态
+//            标识该计算模块中计算任务的状态为已解决
             ifsolved.find(rpv->pcp->name)->second = true;
+//            标识储存有该计算任务的输出参数
+            if_rargs.find(rpv->pcp->name)->second = true;
         }
         else{
             
@@ -264,20 +265,52 @@ int CThread::CancelChildPCS(unsigned long tid){
     return 0;
 }
 
-//设置全局线程时钟
-void setThreadsClock(void){
-    itrl.it_interval.tv_sec = 0;
-    itrl.it_interval.tv_usec = 500000;
-    itrl.it_value.tv_sec = 0;
-    itrl.it_value.tv_usec = 500000;
-    setitimer(ITIMER_REAL, &itrl, &oitrl);
-}
-//时钟滴答调用函数
-void threadsClock(int n){
-    for(auto i = daemon_list.begin(); i != daemon_list.end(); i++){
-        (*i)->Daemon();
+int CThread::GetCPUResult(struct compute_result *pcrt){
+    ifsolved.find(pcrt->name)->second = true;
+//    处理输出参数
+    int count = 0;
+    CPart *pcp = p_map->cparts.find(pcrt->name)->second;
+    vector<int> farg_out = pcp->fargs_out;
+    
+    for(auto i = pcrt->args_out->begin(); i != pcrt->args_out->end(); i++,count++){
+        if(farg_out[count] == INT){
+            AddArgsOut<int>(pcrt->name, *((int *)(*i)));
+        }
+        else if(farg_out[count] == DOUBLE){
+            AddArgsOut<double>(pcrt->name, *((double *)(*i)));
+        }
     }
-    daemon_list.clear();
+//    处理输入参数
+    vector<int> farg_in = pcp->fargs_in;
+    count = 0;
+    for(auto i = pcrt->args_in->begin(); i != pcrt->args_in->end(); i++,count++){
+        if(farg_in[count] == INT){
+            AddArgs<int>(pcrt->name, *((int *)(*i)));
+        }
+        else if(farg_in[count] == DOUBLE){
+            AddArgs<double>(pcrt->name, *((double *)(*i)));
+        }
+    }
+    ifsolved.find(pcrt->name)->second = true;
+    if_rargs.find(pcrt->name)->second = true;
+    
+//    处理关联计算模块
+    p_map->CMap::MapThrough(pcp, CThread::SignedCpart,&ifsolved);
+    return 0;
+}
+
+struct compute_result CThread::BuildCPUResult(CPart *pcp){
+    struct compute_result ncpur;
+    ncpur.name = pcp->name;
+    ncpur.args_in = &rargs.find(ncpur.name)->second;
+    ncpur.args_in = &rargs.find(ncpur.name)->second;
+    return ncpur;
+}
+
+
+void CThread::SignedCpart(void *args, CPart *pcp){
+    map<string,bool> *pifsolved = (map<string,bool> *) args;
+    pifsolved->find(pcp->name)->second = true;
 }
 
 //注册任务进程时钟调用

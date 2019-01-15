@@ -12,10 +12,28 @@
 #include "cthread.h"
 
 extern list<CThread *> daemon_list;
+extern list<Server *> server_list;
+static struct itimerval oitrl, itrl;
 
 void init(void){
     signal(SIGALRM, threadsClock);
     setThreadsClock();
+}
+
+//设置全局线程时钟
+void setThreadsClock(void){
+    itrl.it_interval.tv_sec = 0;
+    itrl.it_interval.tv_usec = 500000;
+    itrl.it_value.tv_sec = 0;
+    itrl.it_value.tv_usec = 500000;
+    setitimer(ITIMER_REAL, &itrl, &oitrl);
+}
+//时钟滴答调用函数
+void threadsClock(int n){
+    for(auto i = daemon_list.begin(); i != daemon_list.end(); i++){
+        (*i)->Daemon();
+    }
+    daemon_list.clear();
 }
 
 int main(void){

@@ -11,10 +11,9 @@
 
 #include "cpart.h"
 #include "cmap.h"
+#include "server.h"
 
 #include <pthread.h>
-#include <sys/time.h>
-#include <signal.h>
 #include <list>
 
 using std::list;
@@ -49,24 +48,19 @@ struct line_process{
     list<CPart *> line;
 };
 
-//外来数据包解析结构
-struct compute_result{
-    string name;
-    vector<void *> args_in;
-    vector<void *> args_out;
-};
-
 //计算进程管理结构
 class CThread{
 public:
 //    对应的图结构管理结构
-    CMap *p_map;
+    const CMap * const p_map;
 //    此计算进程中计算模块的传入参数数据列表
     map<string,vector<void *>> rargs;
 //    此计算进程的计算模块的传出参数数据列表
     map<string,vector<void *>> rargs_out;
-//    计算模块是否已经执行
+//    计算模块是否已经解决
     map<string,bool> ifsolved;
+//    计算模块是否有数据
+    map<string,bool> if_rargs;
 //    tid生成的依据
     unsigned long idxtid;
 //    并行线程的个数
@@ -76,6 +70,7 @@ public:
 //    守护进程定时器
     struct itimerval itrl;
     
+    
 //    使用图结构管理结构来构造计算进程管理结构
     CThread(CMap *tp_map, int thdnum = 4);
     ~CThread();
@@ -83,6 +78,15 @@ public:
 //    添加相关计算模块的传入参数
     void AddArgs(string name, T value){
         auto k = rargs.find(name);
+        T *p_value = new T();
+        *p_value = value;
+        (*k).second.push_back((void *)p_value);
+    }
+    
+    template<class T>
+//    添加相关计算模块的传出参数
+    void AddArgsOut(string name, T value){
+        auto k = rargs_out.find(name);
         T *p_value = new T();
         *p_value = value;
         (*k).second.push_back((void *)p_value);
@@ -103,8 +107,14 @@ public:
     int CancelChildPCS(unsigned long tid);
 //    处理数据包
     int GetCPUResult(struct compute_result *);
+//    标记计算模块
+    static void SignedCpart(void *args, CPart *pcp);
 //    导出数据包
-    struct compute_result CPUResult(CPart *);
+    struct compute_result BuildCPUResult(CPart *);
+//    发送数据包到服务器
+    int SendCPUResult(Server *,struct compute_result);
+//    从服务器中获得数据包
+    vector<struct compute_result> GetCPURFromServer(Server *);
 //    查询计算模块是否已经解决
     CPart *IfCPTSolved(string name);
 //    建立新线程执行计算模块
@@ -117,10 +127,6 @@ public:
     static void ChildThreadFSH(struct thread_args *);
 };
 
-//设置全局线程时钟
-void setThreadsClock(void);
-//时钟滴答调用函数
-void threadsClock(int);
 //注册任务进程时钟调用
 void setTrdClock(CThread *ptd);
 

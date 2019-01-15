@@ -36,6 +36,9 @@ public:
 //    根据图描述文件依赖关系描述语句所提供的信息转化为依赖关系结构
     Depends ReadItem(string item);
     
+//    由某个节点递归向下遍历
+    static void MapThrough(CPart *pcp,void(*func)(void *,CPart *),void *);
+    
 };
 
 #endif /* cmap_h */
