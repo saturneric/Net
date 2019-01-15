@@ -11,6 +11,8 @@
 #include "cmap.h"
 #include "cthread.h"
 
+extern list<CThread *> daemon_list;
+
 void init(void){
     signal(SIGALRM, threadsClock);
     setThreadsClock();
@@ -26,9 +28,10 @@ int main(void){
     thread.AddArgs<double>("C", 3.0);
     thread.Analyse();
     thread.DoLine();
-    
+    thread.SetDaemon();
+    thread.CancelChildPCS(0);
     while(1){
-        thread.Daemon();
+        sleep(100);
     }
     return 0;
 }

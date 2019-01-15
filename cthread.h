@@ -19,7 +19,9 @@
 
 using std::list;
 
+
 class CThread;
+
 
 //线程信息记录结构体
 struct thread_args{
@@ -41,8 +43,17 @@ struct line_process{
     list<struct thread_args *>child_finished;
 //    子线程管理状态记录
     map<unsigned long,pthread_t> threads;
+//    记录计算模块对应的线程id
+    map<const CPart * const,unsigned long> cpttid;
 //    计算模块处理队列
     list<CPart *> line;
+};
+
+//外来数据包解析结构
+struct compute_result{
+    string name;
+    vector<void *> args_in;
+    vector<void *> args_out;
 };
 
 //计算进程管理结构
@@ -58,13 +69,15 @@ public:
     map<string,bool> ifsolved;
 //    tid生成的依据
     unsigned long idxtid;
+//    并行线程的个数
+    int thdnum;
 //    并行任务处理进程
     struct line_process lpcs;
 //    守护进程定时器
     struct itimerval itrl;
     
 //    使用图结构管理结构来构造计算进程管理结构
-    CThread(CMap *tp_map);
+    CThread(CMap *tp_map, int thdnum = 4);
     ~CThread();
     template<class T>
 //    添加相关计算模块的传入参数
@@ -84,6 +97,16 @@ public:
     void Analyse(void);
 //    执行处理队列
     void DoLine(void);
+//    通过子线程所属的模块名找到子线程的id
+    long FindChildPCS(string name);
+//    取消子线程
+    int CancelChildPCS(unsigned long tid);
+//    处理数据包
+    int GetCPUResult(struct compute_result *);
+//    导出数据包
+    struct compute_result CPUResult(CPart *);
+//    查询计算模块是否已经解决
+    CPart *IfCPTSolved(string name);
 //    建立新线程执行计算模块
     static void * NewThread(void *);
 //    为计算模块的调用准备输入参数
@@ -98,5 +121,7 @@ public:
 void setThreadsClock(void);
 //时钟滴答调用函数
 void threadsClock(int);
+//注册任务进程时钟调用
+void setTrdClock(CThread *ptd);
 
 #endif /* cthread_h */

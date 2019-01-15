@@ -10,7 +10,9 @@
 
 static struct itimerval oitrl, itrl;
 
-CThread::CThread(CMap *tp_map):p_map(tp_map),idxtid(0){
+list<CThread *> daemon_list = {};
+
+CThread::CThread(CMap *tp_map,int thdnum):p_map(tp_map),idxtid(0),thdnum(thdnum){
     lpcs.if_als = false;
 //    构造空的传入与传出参数列表
     for(auto k = p_map->cparts.begin(); k != p_map->cparts.end(); k++){
@@ -88,6 +90,7 @@ void CThread::Analyse(void){
                     vector<void *> args_out = rargs_out.find(ditem->t_cpart->name)->second;
 //                        检查传入传出参数的类型是否匹配
                     for(auto itm = args.begin(); itm != args.end();itm++){
+//                        参数不匹配则报异常
                         if(s_fargs_in[count++] != f_fargs_out[*itm]) throw "type conflict";
 //                            重新分配内存
                         if(f_fargs_out[*itm] == INT){
@@ -100,6 +103,8 @@ void CThread::Analyse(void){
                         
                 }
                 lpcs.line.push_back((*k).second);
+//                大于线程最高并行数则跳出
+                if(count == thdnum) break;
             }
         }
 //        如果该计算模块没有依赖模块
@@ -132,43 +137,45 @@ void CThread::DoLine(void){
             throw "fail to create thread";
         }
         lpcs.threads.insert({ntid,npdt});
+        lpcs.cpttid.insert({(*pcp),ntid});
     }
 
 }
 
 void CThread::SetDaemon(void){
-    
+    daemon_list.push_back(this);
 }
 
 void CThread::Daemon(void){
-    //    等待线程返回
+//    等待线程返回
     for(auto i = lpcs.child_finished.begin(); i != lpcs.child_finished.end(); i++){
         unsigned long tid = (*i)->tid;
         pthread_t cpdt = lpcs.threads.find(tid)->second;
         struct thread_args *rpv = nullptr;
         pthread_join(cpdt, (void **)&rpv);
-        //        根据返回值处理计算任务状态
+//        根据返回值处理计算任务状态
         if(rpv->rtn == SUCCESS){
-            //            标识该计算模块中计算任务的状态
+//            标识该计算模块中计算任务的状态
             ifsolved.find(rpv->pcp->name)->second = true;
         }
         else{
             
         }
-        //        释放线程资源
+//        释放线程资源
         pthread_detach(cpdt);
-        //        在列表中销户证实宣告线程程结束
+//        在列表中销户证实宣告线程程结束
         lpcs.threads.erase(tid);
-        
+        lpcs.cpttid.erase(rpv->pcp);
         printf("TID: %lu Deleted.\n",tid);
         delete rpv;
     }
     lpcs.child_finished.clear();
     if(lpcs.threads.size() > 0){
-        
+        setTrdClock(this);
     }
 }
 
+//子线程即将结束时调用
 void CThread::ChildThreadFSH(struct thread_args *pta){
     CThread *pct = pta->pct;
     (pct->lpcs).child_finished.push_back(pta);
@@ -176,11 +183,20 @@ void CThread::ChildThreadFSH(struct thread_args *pta){
 }
 
 void *CThread::NewThread(void *pv){
+//    取消信号对于线程起作用
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+//    线程收到取消信号时立即取消
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS,NULL);
     struct thread_args *pta = (struct thread_args *)pv;
     printf("Calling TID %lu.\n",pta->tid);
 //    准备输入参数
     PrepareArgsIn(pta->pct,pta->pcp);
     if(pta->pcp->Run() == SUCCESS){
+//        检查线程是否已经被取消
+        pthread_testcancel();
+
+//        取消信号对于线程不再起作用，以防参数混乱
+        pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 //        处理输出参数
         GetArgsOut(pta->pct,pta->pcp);
         pta->rtn = SUCCESS;
@@ -190,6 +206,10 @@ void *CThread::NewThread(void *pv){
     }
     CThread::ChildThreadFSH(pta);
     pthread_exit(pv);
+}
+
+long CThread::FindChildPCS(string name){
+    return lpcs.cpttid.find(p_map->cparts.find(name)->second)->second;
 }
 
 void CThread::PrepareArgsIn(CThread *pct,CPart *pcp){
@@ -235,6 +255,15 @@ void CThread::GetArgsOut(CThread *pct,CPart *pcp){
     
 }
 
+int CThread::CancelChildPCS(unsigned long tid){
+//    找到子线程的操作柄
+    pthread_t pht = lpcs.threads.find(tid)->second;
+    pthread_cancel(pht);
+//    对线程进行销户操作
+    lpcs.threads.erase(tid);
+    return 0;
+}
+
 //设置全局线程时钟
 void setThreadsClock(void){
     itrl.it_interval.tv_sec = 0;
@@ -245,5 +274,13 @@ void setThreadsClock(void){
 }
 //时钟滴答调用函数
 void threadsClock(int n){
-    printf("Clock click.\n");
+    for(auto i = daemon_list.begin(); i != daemon_list.end(); i++){
+        (*i)->Daemon();
+    }
+    daemon_list.clear();
+}
+
+//注册任务进程时钟调用
+void setTrdClock(CThread *ptd){
+    daemon_list.push_back(ptd);
 }
