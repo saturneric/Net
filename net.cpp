@@ -24,10 +24,6 @@ int main(void){
     thread.DoLine();
     thread.Analyse();
     thread.DoLine();
-    thread.Analyse();
-    thread.DoLine();
-    cout<<*((int *)(thread.rargs_out.find("A")->second)[0])<<endl;
-    
     return 0;
 }
 

@@ -12,6 +12,7 @@
 #include "cpart.h"
 #include "cmap.h"
 
+#include <pthread.h>
 #include <list>
 
 using std::list;
@@ -44,6 +45,18 @@ public:
     void Analyse(void);
 //    执行处理队列
     void DoLine(void);
+//    建立新线程执行计算模块
+    static void * NewThread(void *);
+//    为计算模块的调用准备输入参数
+    static void PrepareArgsIn(CThread *pct,CPart *);
+//    获得计算模块执行后的输出参数
+    static void GetArgsOut(CThread *pct,CPart *);
+};
+
+struct thread_args{
+    CThread *pct;
+    CPart *pcp;
+    int rtn;
 };
 
 #endif /* cthread_h */

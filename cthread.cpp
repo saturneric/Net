@@ -110,42 +110,90 @@ void CThread::Analyse(void){
 }
 
 void CThread::DoLine(void){
+    list<pthread_t> threads;
     for(auto pcp = line.begin(); pcp != line.end(); pcp++){
         string name = (*pcp)->name;
         
         vector<void *> args = rargs.find(name)->second;
-        vector<void *> &args_out = rargs_out.find(name)->second;
         vector<int> fargs = (*pcp)->fargs_in;
         vector<int> fargs_out = (*pcp)->fargs_out;
-        vector<void *> &argso = (*pcp)->args_out;
-//        清空调用数据
-        (*pcp)->Clear();
-        int cout = 0;
-//        传入输入参数
-        for(auto arg = args.begin(); arg != args.end(); arg++,cout++){
-            if(fargs[cout] == INT){
-                (*pcp)->addArgsIn<int>(*((int *)(*arg)));
-            }
-            else if(fargs[cout] == DOUBLE){
-                (*pcp)->addArgsIn<double>(*((double *)(*arg)));
-            }
-        }
-//        调用计算模块
-        if(!(*pcp)->Run()){
-            ifsolved.find(name)->second = true;
-            int cout = 0;
-//            处理输出
-            for(auto argo = argso.begin(); argo != argso.end(); argo++,cout++){
-                if(fargs_out[cout] == INT){
-                    int *p_value = new int(*((int *)(*argo)));
-                    args_out.push_back((void *)p_value);
-                }
-                else if(fargs_out[cout] == DOUBLE){
-                    double *p_value = new double(*((double *)(*argo)));
-                    args_out.push_back((double *)p_value);
-                }
-            }
+        
+        threads.push_back({0});
+//        创建新线程
+        struct thread_args *pt_ta = new struct thread_args({this,(*pcp),-1});
+        if(pthread_create(&threads.back(),NULL,&CThread::NewThread,(void *)(pt_ta))){
+            throw "fail to create thread";
         }
     }
     line.clear();
+//    等待线程返回
+    for(auto i = threads.begin(); i != threads.end(); i++){
+        struct thread_args *rpv = nullptr;
+        pthread_join((*i), (void **)&rpv);
+//        根据返回值处理计算任务状态
+        if(rpv->rtn == SUCCESS){
+            ifsolved.find(rpv->pcp->name)->second = true;
+        }
+        delete rpv;
+    }
+}
+
+void *CThread::NewThread(void *pv){
+    struct thread_args *pta = (struct thread_args *)pv;
+    printf("Calling CPART %s.\n",pta->pcp->name.data());
+//    准备输入参数
+    PrepareArgsIn(pta->pct,pta->pcp);
+    if(pta->pcp->Run() == SUCCESS){
+//        处理输出参数
+        GetArgsOut(pta->pct,pta->pcp);
+        pta->rtn = SUCCESS;
+    }
+    else{
+        pta->rtn = FAIL;
+    }
+    printf("Called CPART %s.\n",pta->pcp->name.data());
+    pthread_exit(pv);
+}
+
+void CThread::PrepareArgsIn(CThread *pct,CPart *pcp){
+//    读入实际计算进程参数列表中的输入参数
+    vector<void *> args = pct->rargs.find(pcp->name)->second;
+//    获得输入参数格式
+    vector<int> fargs = pcp->fargs_in;
+//    清空历史数据
+    pcp->Clear();
+//    传入输入参数
+    int cout = 0;
+    for(auto arg = args.begin(); arg != args.end(); arg++,cout++){
+        if(fargs[cout] == INT){
+            pcp->addArgsIn<int>(*((int *)(*arg)));
+        }
+        else if(fargs[cout] == DOUBLE){
+            pcp->addArgsIn<double>(*((double *)(*arg)));
+        }
+    }
+}
+
+
+void CThread::GetArgsOut(CThread *pct,CPart *pcp){
+//    获得输出参数格式
+    vector<int> fargs_out = pcp->fargs_out;
+//    获得计算模块中的输出参数列表
+    vector<void *> &argso = pcp->args_out;
+//    获得实际计算进程输出参数储存列表
+    vector<void *> &args_out = pct->rargs_out.find(pcp->name)->second;
+    
+//    处理输出
+    int cout = 0;
+    for(auto argo = argso.begin(); argo != argso.end(); argo++,cout++){
+        if(fargs_out[cout] == INT){
+            int *p_value = new int(*((int *)(*argo)));
+            args_out.push_back((void *)p_value);
+        }
+        else if(fargs_out[cout] == DOUBLE){
+            double *p_value = new double(*((double *)(*argo)));
+            args_out.push_back((double *)p_value);
+        }
+    }
+    
 }
