@@ -11,9 +11,13 @@
 #include "cmap.h"
 #include "cthread.h"
 
-
+void init(void){
+    signal(SIGALRM, threadsClock);
+    setThreadsClock();
+}
 
 int main(void){
+    init();
     CMap map("./PCS");
     CThread thread(&map);
     thread.AddArgs<int>("B", 4);
@@ -22,8 +26,10 @@ int main(void){
     thread.AddArgs<double>("C", 3.0);
     thread.Analyse();
     thread.DoLine();
-    thread.Analyse();
-    thread.DoLine();
+    
+    while(1){
+        thread.Daemon();
+    }
     return 0;
 }
 

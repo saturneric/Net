@@ -13,23 +13,56 @@
 #include "cmap.h"
 
 #include <pthread.h>
+#include <sys/time.h>
+#include <signal.h>
 #include <list>
 
 using std::list;
+
+class CThread;
+
+//线程信息记录结构体
+struct thread_args{
+    //    子线程编号
+    unsigned long tid;
+    //    指向计算任务
+    CThread *pct;
+    //    指向计算模块
+    CPart *pcp;
+    //    储存计算模块调用的返回值
+    int rtn;
+};
+
+//并行任务处理进程信息结构体
+struct line_process{
+//  是否开启并行任务管理
+    bool if_als;
+//    已经释放的子线程
+    list<struct thread_args *>child_finished;
+//    子线程管理状态记录
+    map<unsigned long,pthread_t> threads;
+//    计算模块处理队列
+    list<CPart *> line;
+};
 
 //计算进程管理结构
 class CThread{
 public:
 //    对应的图结构管理结构
     CMap *p_map;
-//    计算模块处理队列
-    list<CPart *> line;
 //    此计算进程中计算模块的传入参数数据列表
     map<string,vector<void *>> rargs;
 //    此计算进程的计算模块的传出参数数据列表
     map<string,vector<void *>> rargs_out;
 //    计算模块是否已经执行
     map<string,bool> ifsolved;
+//    tid生成的依据
+    unsigned long idxtid;
+//    并行任务处理进程
+    struct line_process lpcs;
+//    守护进程定时器
+    struct itimerval itrl;
+    
 //    使用图结构管理结构来构造计算进程管理结构
     CThread(CMap *tp_map);
     ~CThread();
@@ -41,7 +74,13 @@ public:
         *p_value = value;
         (*k).second.push_back((void *)p_value);
     }
-//    分析图结构来构造处理队列
+    
+//    设置守护进程
+    void SetDaemon(void);
+    
+//    守护进程
+    void Daemon(void);
+//    分析图结构来构造新的处理队列
     void Analyse(void);
 //    执行处理队列
     void DoLine(void);
@@ -51,12 +90,13 @@ public:
     static void PrepareArgsIn(CThread *pct,CPart *);
 //    获得计算模块执行后的输出参数
     static void GetArgsOut(CThread *pct,CPart *);
+//    通知计算任务子线程即将结束
+    static void ChildThreadFSH(struct thread_args *);
 };
 
-struct thread_args{
-    CThread *pct;
-    CPart *pcp;
-    int rtn;
-};
+//设置全局线程时钟
+void setThreadsClock(void);
+//时钟滴答调用函数
+void threadsClock(int);
 
 #endif /* cthread_h */

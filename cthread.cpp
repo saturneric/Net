@@ -8,7 +8,10 @@
 
 #include "cthread.h"
 
-CThread::CThread(CMap *tp_map):p_map(tp_map){
+static struct itimerval oitrl, itrl;
+
+CThread::CThread(CMap *tp_map):p_map(tp_map),idxtid(0){
+    lpcs.if_als = false;
 //    构造空的传入与传出参数列表
     for(auto k = p_map->cparts.begin(); k != p_map->cparts.end(); k++){
         vector<void *> args,args_out;
@@ -53,6 +56,10 @@ CThread::~CThread(){
 }
 
 void CThread::Analyse(void){
+//    如果上一个并行执行进程还没有退出
+    if(lpcs.if_als == true){
+        //还没想好怎么做
+    }
     for(auto k = p_map->cparts.begin(); k != p_map->cparts.end(); k++){
         auto cpart_depends = (*k).second->depends;
 //        如果计算模块已经执行则跳过
@@ -92,7 +99,7 @@ void CThread::Analyse(void){
                     }
                         
                 }
-                line.push_back((*k).second);
+                lpcs.line.push_back((*k).second);
             }
         }
 //        如果该计算模块没有依赖模块
@@ -101,7 +108,7 @@ void CThread::Analyse(void){
             if(rargs.find(k->second->name)->second.size() == k->second->fargs_in.size()){
 //                如果该模块还没有被调用
                 if(ifsolved.find(name)->second == false){
-                    line.push_back(k->second);
+                    lpcs.line.push_back(k->second);
                 }
             }
             
@@ -110,37 +117,67 @@ void CThread::Analyse(void){
 }
 
 void CThread::DoLine(void){
-    list<pthread_t> threads;
-    for(auto pcp = line.begin(); pcp != line.end(); pcp++){
+    for(auto pcp = lpcs.line.begin(); pcp != lpcs.line.end(); pcp++){
         string name = (*pcp)->name;
         
         vector<void *> args = rargs.find(name)->second;
         vector<int> fargs = (*pcp)->fargs_in;
         vector<int> fargs_out = (*pcp)->fargs_out;
         
-        threads.push_back({0});
+        unsigned long ntid = idxtid++;
+        pthread_t npdt = 0;
 //        创建新线程
-        struct thread_args *pt_ta = new struct thread_args({this,(*pcp),-1});
-        if(pthread_create(&threads.back(),NULL,&CThread::NewThread,(void *)(pt_ta))){
+        struct thread_args *pt_ta = new struct thread_args({ntid,this,(*pcp),-1});
+        if(pthread_create(&npdt,NULL,&CThread::NewThread,(void *)(pt_ta))){
             throw "fail to create thread";
         }
+        lpcs.threads.insert({ntid,npdt});
     }
-    line.clear();
-//    等待线程返回
-    for(auto i = threads.begin(); i != threads.end(); i++){
+
+}
+
+void CThread::SetDaemon(void){
+    
+}
+
+void CThread::Daemon(void){
+    //    等待线程返回
+    for(auto i = lpcs.child_finished.begin(); i != lpcs.child_finished.end(); i++){
+        unsigned long tid = (*i)->tid;
+        pthread_t cpdt = lpcs.threads.find(tid)->second;
         struct thread_args *rpv = nullptr;
-        pthread_join((*i), (void **)&rpv);
-//        根据返回值处理计算任务状态
+        pthread_join(cpdt, (void **)&rpv);
+        //        根据返回值处理计算任务状态
         if(rpv->rtn == SUCCESS){
+            //            标识该计算模块中计算任务的状态
             ifsolved.find(rpv->pcp->name)->second = true;
         }
+        else{
+            
+        }
+        //        释放线程资源
+        pthread_detach(cpdt);
+        //        在列表中销户证实宣告线程程结束
+        lpcs.threads.erase(tid);
+        
+        printf("TID: %lu Deleted.\n",tid);
         delete rpv;
     }
+    lpcs.child_finished.clear();
+    if(lpcs.threads.size() > 0){
+        
+    }
+}
+
+void CThread::ChildThreadFSH(struct thread_args *pta){
+    CThread *pct = pta->pct;
+    (pct->lpcs).child_finished.push_back(pta);
+    printf("Called TID %lu.\n",pta->tid);
 }
 
 void *CThread::NewThread(void *pv){
     struct thread_args *pta = (struct thread_args *)pv;
-    printf("Calling CPART %s.\n",pta->pcp->name.data());
+    printf("Calling TID %lu.\n",pta->tid);
 //    准备输入参数
     PrepareArgsIn(pta->pct,pta->pcp);
     if(pta->pcp->Run() == SUCCESS){
@@ -151,7 +188,7 @@ void *CThread::NewThread(void *pv){
     else{
         pta->rtn = FAIL;
     }
-    printf("Called CPART %s.\n",pta->pcp->name.data());
+    CThread::ChildThreadFSH(pta);
     pthread_exit(pv);
 }
 
@@ -196,4 +233,17 @@ void CThread::GetArgsOut(CThread *pct,CPart *pcp){
         }
     }
     
+}
+
+//设置全局线程时钟
+void setThreadsClock(void){
+    itrl.it_interval.tv_sec = 0;
+    itrl.it_interval.tv_usec = 500000;
+    itrl.it_value.tv_sec = 0;
+    itrl.it_value.tv_usec = 500000;
+    setitimer(ITIMER_REAL, &itrl, &oitrl);
+}
+//时钟滴答调用函数
+void threadsClock(int n){
+    printf("Clock click.\n");
 }
