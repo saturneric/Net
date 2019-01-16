@@ -7,3 +7,9 @@
 //
 
 #include "server.h"
+
+list<server_clock> server_list;
+
+void setServerClock(Server *psvr, int clicks){
+    server_list.push_back({psvr,clicks});
+}

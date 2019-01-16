@@ -28,6 +28,8 @@
 #include <netdb.h>
 #include <sys/time.h>
 #include <signal.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #include "cpart.h"
 
@@ -39,6 +41,7 @@ using std::list;
 using std::ifstream;
 using std::cout;
 using std::endl;
+
 
 class Addr{
 public:
@@ -84,7 +87,7 @@ public:
     struct sockaddr_in c_addr;
     Addr addr;
     int nsfd,sfd,port;
-    bool server,tcp,ipv4;
+    bool server,tcp,ipv4,set_fcntl = false;
     void (*func)(class Socket &,int ,Addr);
     Socket(string ip_addr, int port, bool server = false, bool tcp = true, bool ipv4 = true){
         if(ipv4)
@@ -151,18 +154,107 @@ public:
             sendto(sfd, buff.data(), buff.size(), 0, addr.obj(), addr.size());
     }
     
-    string PacketRecv(Addr t_addr){
+//    发送一段二进制信息
+    void PacketSendRAW(char *buff, unsigned long size){
+        if(!tcp)
+            sendto(sfd, buff, size, 0, addr.obj(), addr.size());
+    }
+    
+//    接受储存字符串信息的UDP包
+    int PacketRecv(Addr &t_addr, string &str){
         if(!tcp){
             char buff[BUFSIZ];
-            ssize_t tlen = recvfrom(sfd, (void *)buff, BUFSIZ, 0, t_addr.obj(), t_addr.sizep());
-            if(tlen > 0){
-                buff[tlen] = '\0';
-                string str = buff;
-                return str;
+            ssize_t tlen;
+//            非阻塞输入
+            if(set_fcntl){
+                tlen = recvfrom(sfd, (void *)buff, BUFSIZ, 0, t_addr.obj(), t_addr.sizep());
+    //            读取错误
+                if(tlen == -1 && errno != EAGAIN){
+                    str = "";
+                    return -1;
+                }
+    //            缓冲区没有信息
+                else if(tlen == 0 || (tlen == -1 && errno == EAGAIN)){
+                    str = "";
+                    return 0;
+                }
+    //            成功读取信息
+                else{
+                    str = buff;
+                    buff[tlen] = '\0';
+                    return 1;
+                }
             }
-            else throw "packet receive fail";
+            else{
+                tlen = recvfrom(sfd, (void *)buff, BUFSIZ, 0, t_addr.obj(), t_addr.sizep());
+                if(~tlen){
+                    str = buff;
+                    buff[tlen] = '\0';
+                    return 1;
+                }
+                else{
+                    str = "";
+                    return -1;
+                }
+                
+            }
         }
         throw "connection is tcp";
+    }
+    
+//    接受储存二进制信息的UDP包
+    ssize_t PacketRecvRAW(Addr &t_addr, char *p_rdt){
+        if(!tcp){
+            char buff[BUFSIZ];
+            ssize_t tlen;
+            //            非阻塞输入
+            if(set_fcntl){
+                tlen = recvfrom(sfd, (void *)buff, BUFSIZ, 0, t_addr.obj(), t_addr.sizep());
+                //            读取错误
+                if(tlen == -1 && errno != EAGAIN){
+                    p_rdt = nullptr;
+                    return -1;
+                }
+                //            缓冲区没有信息
+                else if(tlen == 0 || (tlen == -1 && errno == EAGAIN)){
+                    p_rdt = nullptr;
+                    return 0;
+                }
+                //            成功读取信息
+                else{
+                    p_rdt = (char *)malloc(tlen);
+                    memcpy(p_rdt, buff, tlen);
+                    return tlen;
+                }
+            }
+            else{
+                tlen = recvfrom(sfd, (void *)buff, BUFSIZ, 0, t_addr.obj(), t_addr.sizep());
+                if(~tlen){
+                    p_rdt = (char *)malloc(tlen);
+                    memcpy(p_rdt, buff, tlen);
+                    return tlen;
+                }
+                else{
+                    p_rdt = nullptr;
+                    return -1;
+                }
+                
+            }
+        }
+        throw "connection is tcp";
+    }
+    
+    unsigned long IfHasPacket(void){
+        
+        return 0;
+    }
+    
+    void UDPSetFCNTL(void){
+        if(!tcp){
+            int flags = fcntl(sfd, F_GETFL, 0);
+            fcntl(sfd, F_SETFL, flags | O_NONBLOCK);
+            set_fcntl = true;
+        }
     }
     
     string Recv(int t_nsfd){
