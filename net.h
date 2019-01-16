@@ -74,6 +74,12 @@ public:
     socklen_t size(void){
         return len;
     }
+    void SetPort(int port){
+        address.sin_port = htons(port);
+    }
+    void SetIP(string ip_addr){
+        address.sin_addr.s_addr = inet_addr(ip_addr.data());
+    }
     void setSize(void){
         len = sizeof(address);
     }
@@ -88,6 +94,8 @@ public:
     Addr addr;
     int nsfd,sfd,port;
     bool server,tcp,ipv4,set_fcntl = false;
+//    缓冲区
+    char buff[BUFSIZ];
     void (*func)(class Socket &,int ,Addr);
     Socket(string ip_addr, int port, bool server = false, bool tcp = true, bool ipv4 = true){
         if(ipv4)
@@ -154,6 +162,19 @@ public:
             sendto(sfd, buff.data(), buff.size(), 0, addr.obj(), addr.size());
     }
     
+//    重新设置发送模式的端口
+    void SetSendPort(int port){
+        if(!server){
+            addr.SetPort(port);
+        }
+    }
+//    重新设置发送模式的IP地址
+    void SetSendIP(string ip_addr){
+        if(!server){
+            addr.SetIP(ip_addr);
+        }
+    }
+    
 //    发送一段二进制信息
     void PacketSendRAW(char *buff, unsigned long size){
         if(!tcp)
@@ -163,7 +184,6 @@ public:
 //    接受储存字符串信息的UDP包
     int PacketRecv(Addr &t_addr, string &str){
         if(!tcp){
-            char buff[BUFSIZ];
             ssize_t tlen;
 //            非阻塞输入
             if(set_fcntl){
@@ -203,39 +223,38 @@ public:
     }
     
 //    接受储存二进制信息的UDP包
-    ssize_t PacketRecvRAW(Addr &t_addr, char *p_rdt){
+    ssize_t PacketRecvRAW(Addr &t_addr, char **p_rdt){
         if(!tcp){
-            char buff[BUFSIZ];
             ssize_t tlen;
             //            非阻塞输入
             if(set_fcntl){
                 tlen = recvfrom(sfd, (void *)buff, BUFSIZ, 0, t_addr.obj(), t_addr.sizep());
                 //            读取错误
                 if(tlen == -1 && errno != EAGAIN){
-                    p_rdt = nullptr;
+                    *p_rdt = nullptr;
                     return -1;
                 }
                 //            缓冲区没有信息
                 else if(tlen == 0 || (tlen == -1 && errno == EAGAIN)){
-                    p_rdt = nullptr;
+                    *p_rdt = nullptr;
                     return 0;
                 }
                 //            成功读取信息
                 else{
-                    p_rdt = (char *)malloc(tlen);
-                    memcpy(p_rdt, buff, tlen);
+                    *p_rdt = (char *)malloc(tlen);
+                    memcpy(*p_rdt, buff, tlen);
                     return tlen;
                 }
             }
             else{
                 tlen = recvfrom(sfd, (void *)buff, BUFSIZ, 0, t_addr.obj(), t_addr.sizep());
                 if(~tlen){
-                    p_rdt = (char *)malloc(tlen);
+                    *p_rdt = (char *)malloc(tlen);
                     memcpy(p_rdt, buff, tlen);
                     return tlen;
                 }
                 else{
-                    p_rdt = nullptr;
+                    *p_rdt = nullptr;
                     return -1;
                 }
                 

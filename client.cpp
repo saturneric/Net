@@ -14,10 +14,13 @@ int main(int argc, char *argv[])
 {
     
     try {
-        Socket client("127.0.0.1",9048,false,false);
+        Server client("127.0.0.1",9049,"127.0.0.1",9048);
         while (1) {
-            client.PacketSend("Hello");
-            usleep(50000);
+            raw_data trdt;
+            trdt.setData("Hello");
+            client.SignedRawdata(&trdt, "RSTR");
+            client.SentRawdata(&trdt);
+            usleep(5000);
         }
         
     } catch (char const *str) {

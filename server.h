@@ -41,6 +41,13 @@ struct raw_data{
     uint32_t info;
     char *msg = NULL;
     unsigned long msg_size = 0;
+    
+    void setData(string str){
+        data = (char *)malloc(str.size()+1);
+        size = str.size()+1;
+        memcpy(data, str.data(),str.size());
+        data[str.size()+1] = '\0';
+    }
 };
 
 //设置服务器守护程序的时钟
@@ -51,28 +58,44 @@ public:
     vector<compute_result> cpurs_in;
     vector<packet> packets_in;
     vector<string> rawstr_in;
-    Socket socket;
+    Socket socket, send_socket;
     int packet_max = 30;
-    Server(string ip_addr):socket(ip_addr,9048,true,false){
+    Server(string ip_addr, int port = 9048, string send_ip_addr = "127.0.0.1",int send_port = 9049):socket(ip_addr,port,true,false),send_socket(send_ip_addr,send_port,false,false){
         socket.UDPSetFCNTL();
     }
+    
+//    重新设置服务器的发送端口
+    void SetSendPort(int port){
+        send_socket.SetSendPort(port);
+    }
+    
+//    重新设置服务器的发送IP地址
+    void SetSendIP(string ip_addr){
+        send_socket.SetSendIP(ip_addr);
+    }
+    
     void Deamon(void){
         //cout<<"Server Deamon Checked."<<endl;
         Addr f_addr;
         
-        int rtn, prm = packet_max;
-        string str;
+        int prm = packet_max;
+        ssize_t tlen;
+        char *str = nullptr;
         printf("Checking Packet.\n");
         do{
-            rtn = socket.PacketRecv(f_addr,str);
-            if(rtn == 1){
-                cout<<str<<endl;
+            tlen = socket.PacketRecvRAW(f_addr,&str);
+            if(tlen > 0){
+                cout<<"Get."<<endl;
+                if(CheckRawMsg(str, tlen)){
+                    cout<<"Signed Raw Data."<<endl;
+                    ProcessSignedRawMsg(str, tlen);
+                }
                 rawstr_in.push_back(str);
             }
             else{
                 
             }
-        }while (rtn && prm-- > 0);
+        }while (tlen && prm-- > 0);
         setServerClock(this, 2);
     }
 //    将计算结果包转化为结构数据包
@@ -211,11 +234,11 @@ public:
     }
     
 //    为原始二进制串打上信息标签
-    void RawdataAddInfo(struct raw_data *trdt,char info[]){
+    void SignedRawdata(struct raw_data *trdt,string info){
 //        填充标签信息
         memcpy(&trdt->head, "NETC", sizeof(uint32_t));
         memcpy(&trdt->tail, "CTEN", sizeof(uint32_t));
-        memcpy(&trdt->head, info, sizeof(uint32_t));
+        memcpy(&trdt->info, info.data(), sizeof(uint32_t));
 //        整合信息
         char *msg = (char *)malloc(sizeof(uint32_t) * 3 + trdt->size);
         trdt->msg_size = sizeof(uint32_t) * 3 + trdt->size;
@@ -224,14 +247,15 @@ public:
         idx += sizeof(uint32_t);
         memcpy(idx, &trdt->info, sizeof(uint32_t));
         idx += sizeof(uint32_t);
-        memcpy(idx, &trdt->data, trdt->size);
+        memcpy(idx, trdt->data, trdt->size);
         idx += trdt->size;
         memcpy(idx, &trdt->tail, sizeof(uint32_t));
+        trdt->msg = msg;
     }
     
 //    发送已经打上标签的原始二进制串
     int SentRawdata(struct raw_data *trdt){
-        socket.PacketSendRAW(trdt->msg, trdt->msg_size);
+        send_socket.PacketSendRAW(trdt->msg, trdt->msg_size);
         return 0;
     }
     
@@ -241,12 +265,22 @@ public:
         char *idx = p_rdt;
         memcpy(&head, "NETC", sizeof(uint32_t));
         memcpy(&tail, "CTEN", sizeof(uint32_t));
-        if(memcmp(idx, &head, sizeof(uint32_t))){
+        if(!memcmp(idx, &head, sizeof(uint32_t))){
             idx += size-sizeof(uint32_t);
-            if(memcmp(idx, &tail, sizeof(uint32_t))) return true;
+            if(!memcmp(idx, &tail, sizeof(uint32_t))) return true;
             else return false;
         }
         else return false;
+    }
+    
+//    处理一个已打上标签的原始二进制串，获得其中储存的信息
+    raw_data ProcessSignedRawMsg(char *p_rdt, ssize_t size){
+        raw_data trdt;
+        trdt.data = (char *)malloc(size-3*sizeof(uint32_t));
+        memcpy(&trdt.info, p_rdt+sizeof(uint32_t), sizeof(uint32_t));
+        memcpy(trdt.data, p_rdt+sizeof(uint32_t)*2, size-3*sizeof(uint32_t));
+        printf("Data:%s\n",trdt.data);
+        return trdt;
     }
     
 };

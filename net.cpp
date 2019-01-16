@@ -62,13 +62,13 @@ int main(void){
     CPart::addArg<int>(&args, 6);
     CPart::addArg<double>(&args, 8.2);
 //    输入过程
-    struct compute_result cpur = {"Test",&args,&args,&fargs,&fargs};
+   /* struct compute_result cpur = {"Test",&args,&args,&fargs,&fargs};
     packet pkt =  srvr.CPURS2Packet(cpur);
-    raw_data rwd =  srvr.Packet2Rawdata(pkt);
+    raw_data rwd =  srvr.Packet2Rawdata(pkt);*/
     
 //    输出过程
-    srvr.Rawdata2Packet(rwd);
-    
+    //srvr.Rawdata2Packet(rwd);
+    srvr.Deamon();
     while(1){
         sleep(100);
     }
