@@ -21,7 +21,7 @@ void setServerClock(Server *psvr, int clicks){
     clocks_list.push_back(ncr);
 }
 
-Server::Server(string ip_addr, int port, string send_ip_addr,int send_port):socket(ip_addr,port,true,false),send_socket(send_ip_addr,send_port,false,false){
+Server::Server(int port, string send_ip,int send_port):socket(port),send_socket(send_ip,send_port){
     socket.UDPSetFCNTL();
 }
 
@@ -186,7 +186,7 @@ void Server::SignedRawdata(struct raw_data *trdt,string info){
 }
 
 int Server::SentRawdata(struct raw_data *trdt){
-    send_socket.PacketSendRAW(trdt->msg, trdt->msg_size);
+    send_socket.SendRAW(trdt->msg, trdt->msg_size);
     return 0;
 }
 
@@ -222,7 +222,7 @@ void *serverDeamon(void *psvr){
     char *str = nullptr;
     printf("Checking Packet.\n");
     do{
-        tlen = svr.socket.PacketRecvRAW(f_addr,&str);
+        tlen = svr.socket.RecvRAW(&str);
         if(tlen > 0){
             //                记录有效数据包
             if(Server::CheckRawMsg(str, tlen)){

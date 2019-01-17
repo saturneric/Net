@@ -34,11 +34,11 @@ Addr::Addr(const Addr &t_addr){
 }
 
 
-socklen_t *Addr::sizep(void){
+socklen_t *Addr::SizeP(void){
     return &addr_size;
 }
 
-socklen_t Addr::size(void){
+socklen_t Addr::Size(void){
     return addr_size;
 }
 
@@ -56,6 +56,20 @@ void Addr::SetIP(string ip_addr){
     addr_size = sizeof(address);
 }
 
-struct sockaddr *Addr::obj(void){
-    return (struct sockaddr *) &address;
+struct sockaddr_in *Addr::Obj(void){
+    return &address;
+}
+
+struct sockaddr *Addr::RawObj(void){
+    return (struct sockaddr *)&address;
+}
+
+void Addr::SetIpv4(void){
+    address.sin_family = AF_INET;
+    SetSize();
+}
+
+void Addr::SetIpv6(void){
+    address.sin_family = AF_INET6;
+    SetSize();
 }

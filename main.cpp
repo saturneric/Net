@@ -17,7 +17,7 @@
 
 int main(void){
     initClock();
-    Server srvr("127.0.0.1");
+    Server srvr(9048);
     //srvr.Deamon();
     vector<int> fargs = {1,0,0,1};
     vector<void *>args;
