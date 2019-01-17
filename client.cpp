@@ -12,7 +12,6 @@
 
 int main(int argc, char *argv[])
 {
-    
     try {
         Server client("127.0.0.1",9049,"127.0.0.1",9048);
         vector<int> fargs = {1,0,0,1};

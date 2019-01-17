@@ -15,6 +15,7 @@
 #include "server.h"
 
 class CThread;
+class Server;
 
 //线程信息记录结构体
 struct thread_args{

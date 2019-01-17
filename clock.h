@@ -19,7 +19,7 @@ struct clock_register{
 };
 
 //初始化全局时钟
-void initClock(void)
+void initClock(void);
 //设置全局线程时钟
 void setThreadsClock(void);
 //时钟滴答调用函数

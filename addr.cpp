@@ -42,6 +42,10 @@ socklen_t Addr::size(void){
     return addr_size;
 }
 
+void Addr::SetSize(void){
+    addr_size = sizeof(address);
+}
+
 void Addr::SetPort(int port){
     address.sin_port = htons(port);
     addr_size = sizeof(address);

@@ -109,6 +109,4 @@ void setServerClock(Server *psvr, int clicks);
 //服务器守护线程
 void *serverDeamon(void *psvr);
 
-
-
 #endif /* server_h */

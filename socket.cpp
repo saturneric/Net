@@ -10,14 +10,15 @@
 
 
 Socket::Socket(string ip_addr, int port, bool server, bool tcp, bool ipv4){
+    struct sockaddr_in &address = *(struct sockaddr_in *)addr.obj();
     if(ipv4)
-        addr.address.sin_family = AF_INET;
+        address.sin_family = AF_INET;
     else
-        addr.address.sin_family = AF_INET6;
-    addr.address.sin_port = htons(port);
+        address.sin_family = AF_INET6;
+    address.sin_port = htons(port);
     this->port = port;
-    addr.address.sin_addr.s_addr = inet_addr(ip_addr.data());
-    addr.setSize();
+    address.sin_addr.s_addr = inet_addr(ip_addr.data());
+    addr.SetSize();
     this->server = server;
     this->tcp = tcp;
     this->ipv4 = ipv4;

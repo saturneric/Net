@@ -30,6 +30,8 @@ public:
     void SetPort(int port);
 //    重新设置IP地址管理结构所对应的IP地址
     void SetIP(string ip_addr);
+//    IP地址管理结构的大小变量
+    void SetSize(void);
 //    获得指向IP地址管理结构的指针
     struct sockaddr *obj(void);
 };
