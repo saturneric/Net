@@ -9,16 +9,11 @@
 #ifndef cmap_h
 #define cmap_h
 
+#include "type.h"
 #include "cpart.h"
-#include <map>
-#include <fstream>
-#include <sstream>
 
-using std::map;
-using std::ifstream;
-using std::pair;
 
-//计算任务无环有向图管理
+//计算模块图类
 class CMap{
 public:
 //    图中包含的的计算模块列表

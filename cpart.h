@@ -9,13 +9,7 @@
 #ifndef cpart_h
 #define cpart_h
 
-#include <unistd.h>
-#include <dlfcn.h>
-#include <string>
-#include <vector>
-
-using std::vector;
-using std::string;
+#include "type.h"
 
 //声明计算模块的传入与传出参数列表
 #define ARGS_DECLAER(name) vector<void *> __##name##_args_in, __##name##_args_out
@@ -25,13 +19,14 @@ using std::string;
 #define GET_ARGS(name,type) CPart::popArg<type>(&__##name##_args_in)
 #define ADD_ARGS(name,type,value) CPart::addArg<type>(&__##name##_args_out, value);
 
-
 //从传入参数列表的第一个值，并删除该值
 #define POP_ARGS(name,type) GET_ARGS( name ,type)
 //向传出参数列表中添加值
 #define PUSH_ARGS(name,type,value) ADD_ARGS( name ,type,value)
 
+//整型
 #define INT 0
+//浮点型
 #define DOUBLE 1
 
 //调用计算模块成功的返回
@@ -39,11 +34,12 @@ using std::string;
 //调用计算模块失败的返回
 #define FAIL -1
 
+//计算模块入口函数类型
 typedef int(*PCSFUNC)(void);
 
 class CPart;
 
-//计算模块管理对象间的依赖关系
+//计算模块管理对象间的依赖关系管理结构
 class Depends{
 public:
 //    指向依赖的计算模块管理对象的指针
@@ -52,7 +48,7 @@ public:
     vector<int> args;
 };
 
-//计算模块管理对象
+//计算模块类
 class CPart{
 public:
 //    参数形式信息列表

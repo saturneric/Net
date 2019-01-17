@@ -313,7 +313,6 @@ void CThread::SignedCpart(void *args, CPart *pcp){
     pifsolved->find(pcp->name)->second = true;
 }
 
-//注册任务进程时钟调用
 void setTrdClock(CThread *ptd){
     daemon_list.push_back(ptd);
 }

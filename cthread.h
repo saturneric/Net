@@ -9,18 +9,12 @@
 #ifndef cthread_h
 #define cthread_h
 
+#include "type.h"
 #include "cpart.h"
 #include "cmap.h"
 #include "server.h"
 
-#include <pthread.h>
-#include <list>
-
-using std::list;
-
-
 class CThread;
-
 
 //线程信息记录结构体
 struct thread_args{
@@ -37,7 +31,7 @@ struct thread_args{
 //并行任务处理进程信息结构体
 struct line_process{
 //  是否开启并行任务管理
-    bool if_als;
+    bool if_als = false;
 //    已经释放的子线程
     list<struct thread_args *>child_finished;
 //    子线程管理状态记录
@@ -48,10 +42,10 @@ struct line_process{
     list<CPart *> line;
 };
 
-//计算进程管理结构
+//计算任务类
 class CThread{
 public:
-//    对应的图结构管理结构
+//    计算任务图纸
     const CMap * const p_map;
 //    此计算进程中计算模块的传入参数数据列表
     map<string,vector<void *>> rargs;
@@ -74,6 +68,7 @@ public:
 //    使用图结构管理结构来构造计算进程管理结构
     CThread(CMap *tp_map, int thdnum = 4);
     ~CThread();
+    
     template<class T>
 //    添加相关计算模块的传入参数
     void AddArgs(string name, T value){
