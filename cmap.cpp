@@ -46,7 +46,7 @@ void CMap::BuildCPart(ifstream &map){
         string src_name = line.substr(qs+1,qe-qs-1);
         
 //        根据以上信息构造计算管理结构对象
-        CPart *ncp = new CPart(path,src_name,name);
+        CPart *ncp = new CPart(path,"./Lib",src_name,name);
 //        在列表中加入该对象
         this->cparts.insert(pair<string,CPart *>(name,ncp));
         

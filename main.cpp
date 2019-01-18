@@ -26,7 +26,7 @@ void CPMT(void){
 
 int main(void){
     initClock();
-    CPart ncp("./PCS","a.cpp","A");
+    CPart ncp("./PCS","./Libs","a.cpp","A");
     void *a = main_pool.bv_malloc<double>(2.0);
     void *b = main_pool.bv_malloc<double>(3.5);
     void *c = main_pool.bv_malloc<int>(5);

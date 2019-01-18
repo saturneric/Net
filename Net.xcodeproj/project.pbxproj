@@ -50,6 +50,8 @@
 		92A1F29F21F1663300340EFA /* memory.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = memory.cpp; sourceTree = "<group>"; };
 		92A1F2A021F1663300340EFA /* memory.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = memory.h; sourceTree = "<group>"; };
 		92A1F2A421F21DC700340EFA /* a.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = a.cpp; path = build/Debug/PCS/a.cpp; sourceTree = "<group>"; };
+		92A1F2A621F2412500340EFA /* compute.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = compute.h; sourceTree = "<group>"; };
+		92A1F2A721F242C900340EFA /* memory_type.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = memory_type.h; sourceTree = "<group>"; };
 		92D6CE6721EE4920005AEF3B /* server.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = server.cpp; sourceTree = "<group>"; };
 		92D6CE6821EE4920005AEF3B /* server.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = server.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -111,6 +113,8 @@
 				9221DA0F21EB5FB8007310A7 /* net.h */,
 				92D6CE6821EE4920005AEF3B /* server.h */,
 				92A1F29C21F0C67600340EFA /* type.h */,
+				92A1F2A621F2412500340EFA /* compute.h */,
+				92A1F2A721F242C900340EFA /* memory_type.h */,
 			);
 			name = include;
 			sourceTree = "<group>";

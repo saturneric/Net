@@ -10,20 +10,7 @@
 #define memory_h
 
 #include "type.h"
-
-struct block_info{
-    uint32_t size = 0;
-    int lock = 0;
-    bool pted = false;
-    void *pvle = nullptr;
-    block_info(uint32_t size,void *pvle){
-        this->size = size;
-        this->pvle = pvle;
-    }
-    block_info(){
-        
-    }
-};
+#include "memory_type.h"
 
 class BlocksPool{
 //    内存块表
