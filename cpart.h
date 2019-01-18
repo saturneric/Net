@@ -13,17 +13,17 @@
 #include "memory.h"
 
 //声明计算模块的传入与传出参数列表
-#define ARGS_DECLAER(name) vector<void *> __##name##_args_in, __##name##_args_out
+#define ARGS_DECLAER(name) vector<block_info> __##name##_args_in, __##name##_args_out
 //声明计算模块的入口
 #define PCSFUNC_DEFINE(name) extern "C" int name(void)
 
-#define GET_ARGS(name,type) CPart::popArg<type>(&__##name##_args_in)
-#define ADD_ARGS(name,type,value) CPart::addArg<type>(&__##name##_args_out, value);
+#define _PCSFUNC(name) ARGS_DECLAER(name); \
+PCSFUNC_DEFINE(name)
 
 //从传入参数列表的第一个值，并删除该值
-#define POP_ARGS(name,type) GET_ARGS( name ,type)
+#define ARGS_IN(name) __##name##_args_in
 //向传出参数列表中添加值
-#define PUSH_ARGS(name,type,value) ADD_ARGS( name ,type,value)
+#define ARGS_OUT(name) __##name##_args_out
 
 //整型
 #define INT 0
@@ -49,6 +49,53 @@ public:
     vector<int> args;
 };
 
+class LibArgsTransfer{
+public:
+    vector<block_info> *args = nullptr;
+    LibArgsTransfer(vector<block_info> &args){
+        this->args = &args;
+    }
+    LibArgsTransfer(){
+        
+    }
+    void addArgPtr(int size, void *p_arg){
+        void *pc_arg = malloc(size);
+        memcpy(pc_arg, p_arg, size);
+        block_info pbifo(size,pc_arg);
+        args->push_back(pbifo);
+    }
+    template<class T>
+    T getArg(int idx){
+        T *pvle = (T *)(*args)[idx].pvle;
+        if((*args)[idx].size == sizeof(T)) return *pvle;
+        else throw "arg size conflict";
+    }
+    template<class T>
+    T *getArgPtr(int idx){
+        T *pvle = (*args)[idx].pvle;
+        return pvle;
+    }
+    void LibAddArgPtr(int size, void *p_arg){
+        block_info pbifo(size,p_arg);
+        args->push_back(pbifo);
+    }
+    template<class T>
+    void LibAddArg(T arg){
+        T *p_arg = (T *)malloc(sizeof(T));
+        *p_arg = arg;
+        block_info pbifo(sizeof(T),p_arg);
+        args->push_back(pbifo);
+    }
+    void clear(void){
+        for(auto arg : *args)
+            free(arg.pvle);
+        args->clear();
+    }
+    ~LibArgsTransfer(){
+        //clear();
+    }
+};
+
 //计算模块类
 class CPart{
 public:
@@ -57,7 +104,7 @@ public:
 //    参数操纵列表
     vector<void *> args_in, args_out;
 //    lib文件中相关参数操纵列表的地址
-    vector<void *> *libargs_in,*libargs_out;
+    LibArgsTransfer libargs_in, libargs_out;
 //    所依赖的计算对象列表
     vector<Depends> depends;
 //    lib文件中的计算模块的入口地址
@@ -73,8 +120,6 @@ public:
 //    源文件名
     string src_name;
     
-//    当计算模块随着该工具同时编译时可以直接使用该构造函数
-    CPart(PCSFUNC func):func(func),handle(nullptr){}
 //    一般构造函数，计算模块在文件中以源文件的形式独立存在时使用该构造函数
     CPart(string src_path,string src_name,string name,bool ffresh = true);
 //    析构函数
@@ -96,28 +141,8 @@ public:
         if(p_value == nullptr) throw "information lost";
         args_in.push_back(p_value);
     }
-    
-//    一般由lib文件中的计算模块调用的向vector中添加参数并分配内存空间而后初始化
-    static void addArg(vector<void *> *args, void *arg){
-        void *p_value = main_pool.b_get(arg);
-        if(p_value == nullptr) throw "information lost";
-        args->push_back(p_value);
-    }
-//    一般由lib文件中的计算模块调用的从vector中获得参数并释放其占用的内存空间而后返回相关值
-    template<class T>
-    static T popArg(vector<void *> *args){
-        if(args == nullptr) throw "the pointer to vector is null";
-        
-        T *p_value = (T *)args->back();
-        
-        p_value = main_pool.b_get(p_value);
-        if(p_value == nullptr) throw "infomation lost";
-        
-        p_value = main_pool.b_free(p_value);
-        T value = *p_value;
-        args->pop_back();
-        return value;
-    }
 };
+
+
 
 #endif /* cpart_h */

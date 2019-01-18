@@ -11,12 +11,18 @@
 
 #include "type.h"
 
-
-
 struct block_info{
     uint32_t size = 0;
     int lock = 0;
     bool pted = false;
+    void *pvle = nullptr;
+    block_info(uint32_t size,void *pvle){
+        this->size = size;
+        this->pvle = pvle;
+    }
+    block_info(){
+        
+    }
 };
 
 class BlocksPool{
@@ -27,8 +33,31 @@ public:
     void *b_malloc(uint32_t size){
         void *ptr = malloc(size);
         if(ptr == nullptr) return nullptr;
-        blocks_list.insert({ptr,{size,1}});
+        
+        block_info bifo;
+        bifo.size = size;
+        bifo.lock = 1;
+        bifo.pted = false;
+        bifo.pvle = ptr;
+        
+        blocks_list.insert(pair<void *, block_info>(ptr,bifo));
         return ptr;
+    }
+    
+    template<class T>
+    void *bv_malloc(T value){
+        T *pvalue = (T *)b_malloc(sizeof(T));
+        *pvalue = T(value);
+        return pvalue;
+    }
+    
+    void *bp_malloc(uint32_t size, void *ptvle){
+        void *pvalue = b_malloc(size);
+        memcpy(pvalue, ptvle, size);
+        return pvalue;
+    }
+    uint32_t size(void *ptr){
+        return blocks_list.find(ptr)->second.size;
     }
 //    标记使用某内存块
     void *b_get(void *ptr){

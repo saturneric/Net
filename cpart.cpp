@@ -17,7 +17,7 @@
  @param name 计算模块的名字
  @param ffresh 每次建立该结构都重新编译一次源文件
  */
-CPart::CPart(string src_path,string src_name,string name,bool ffresh):func(nullptr),handle(nullptr),libargs_in(nullptr),libargs_out(nullptr){
+CPart::CPart(string src_path,string src_name,string name,bool ffresh):func(nullptr),handle(nullptr){
     this->src_path = src_path;
     this->name = name;
     
@@ -59,17 +59,17 @@ int CPart::BuildSo(void){
  */
 int CPart::GetSo(void){
     //    读取lib文件
-    this->handle = dlopen(("Libs/"+libname).data(), RTLD_NOW | RTLD_GLOBAL);
+    this->handle = dlopen(("Libs/"+libname).data(), RTLD_NOW | RTLD_LOCAL);
     if(this->handle == nullptr) throw "can not open lib file";
     //    获得该模块的入口
     this->func = (PCSFUNC) dlsym(this->handle, this->name.data());
     if(this->func == nullptr) throw "can not get func "+this->name;
     //    获得向该模块传入参数的vector的地址
-    this->libargs_in = (vector<void *> *) dlsym(this->handle, ("__"+name+"_args_in").data());
-    if(this->libargs_in == nullptr) throw "can not get the address of __"+name+"_args_in";
+    this->libargs_in.args = (vector<block_info> *) dlsym(this->handle, ("__"+name+"_args_in").data());
+    if(this->libargs_in.args == nullptr) throw "can not get the address of __"+name+"_args_in";
     //    获得该函数传出参数所在的vector的地址
-    this->libargs_out = (vector<void *> *) dlsym(this->handle, ("__"+name+"_args_out").data());
-    if(this->libargs_out == nullptr) throw "can not get the address of __"+name+"_args_out";
+    this->libargs_out.args = (vector<block_info> *) dlsym(this->handle, ("__"+name+"_args_out").data());
+    if(this->libargs_out.args == nullptr) throw "can not get the address of __"+name+"_args_out";
     return 0;
 }
 
@@ -103,16 +103,17 @@ void CPart::setArgsType(vector<int> fargs_in, vector<int> fargs_out){
 int CPart::Run(void){
     if(func == nullptr) throw "func is nullptr";
 //    对计算模块传入参数
-    for(auto arg : args_in) libargs_in->push_back(arg);
+    for(auto arg : args_in)
+        libargs_in.addArgPtr(main_pool.size(arg), arg);
 //    执行计算模块
     if(func() == SUCCESS){
 //储存计算结果
-        for(auto arg : *libargs_out){
+        for(auto libarg : *libargs_out.args){
 //            获得内存块的访问量
-            main_pool.b_get(arg);
+            void *arg = main_pool.bp_malloc(libarg.size, libarg.pvle);
             args_out.push_back(arg);
         }
-        libargs_out->clear();
+        libargs_out.clear();
         return SUCCESS;
     }
     else return -1;

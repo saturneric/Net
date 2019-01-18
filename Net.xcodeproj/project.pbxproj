@@ -15,6 +15,7 @@
 		92A1F29B21F0C5CC00340EFA /* clock.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92A1F29921F0C5CC00340EFA /* clock.cpp */; };
 		92A1F29E21F0C72C00340EFA /* addr.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92A1F29D21F0C72C00340EFA /* addr.cpp */; };
 		92A1F2A121F1663300340EFA /* memory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92A1F29F21F1663300340EFA /* memory.cpp */; };
+		92A1F2A521F21DC700340EFA /* a.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92A1F2A421F21DC700340EFA /* a.cpp */; };
 		92D6CE6921EE4920005AEF3B /* server.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92D6CE6721EE4920005AEF3B /* server.cpp */; };
 /* End PBXBuildFile section */
 
@@ -48,6 +49,7 @@
 		92A1F29D21F0C72C00340EFA /* addr.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = addr.cpp; sourceTree = "<group>"; };
 		92A1F29F21F1663300340EFA /* memory.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = memory.cpp; sourceTree = "<group>"; };
 		92A1F2A021F1663300340EFA /* memory.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = memory.h; sourceTree = "<group>"; };
+		92A1F2A421F21DC700340EFA /* a.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = a.cpp; path = build/Debug/PCS/a.cpp; sourceTree = "<group>"; };
 		92D6CE6721EE4920005AEF3B /* server.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = server.cpp; sourceTree = "<group>"; };
 		92D6CE6821EE4920005AEF3B /* server.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = server.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -82,6 +84,7 @@
 		9221DA0E21EB5FAD007310A7 /* Net */ = {
 			isa = PBXGroup;
 			children = (
+				92A1F2A421F21DC700340EFA /* a.cpp */,
 				925A13AA21EC989500CBD427 /* include */,
 				9221DA1021EB5FB8007310A7 /* main.cpp */,
 				92A1F29721F0C19500340EFA /* socket.cpp */,
@@ -169,6 +172,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9221DA1121EB5FB8007310A7 /* main.cpp in Sources */,
+				92A1F2A521F21DC700340EFA /* a.cpp in Sources */,
 				925A13A621EC68D500CBD427 /* cpart.cpp in Sources */,
 				92A1F29B21F0C5CC00340EFA /* clock.cpp in Sources */,
 				925A13A921EC973000CBD427 /* cmap.cpp in Sources */,
