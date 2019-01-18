@@ -91,17 +91,16 @@ public:
     void Clear(void);
     
 //    在对象的传入参数列表中添加参数值
-    template<class T> void addArgsIn(T value){
-        T *p_value = new T(value);
-        if(p_value == nullptr) throw "fail to malloc";
+    void AddCPArgsIn(void *arg){
+        void *p_value = main_pool.b_get(arg);
+        if(p_value == nullptr) throw "information lost";
         args_in.push_back(p_value);
     }
+    
 //    一般由lib文件中的计算模块调用的向vector中添加参数并分配内存空间而后初始化
-    template<class T>
-    static void addArg(vector<void *> *args,T value){
-        T *p_value = (T *) main_pool.b_malloc(sizeof(T));
-        *p_value = value;
-        if(p_value == nullptr) throw "fail to malloc";
+    static void addArg(vector<void *> *args, void *arg){
+        void *p_value = main_pool.b_get(arg);
+        if(p_value == nullptr) throw "information lost";
         args->push_back(p_value);
     }
 //    一般由lib文件中的计算模块调用的从vector中获得参数并释放其占用的内存空间而后返回相关值
@@ -117,7 +116,6 @@ public:
         p_value = main_pool.b_free(p_value);
         T value = *p_value;
         args->pop_back();
-        
         return value;
     }
 };
