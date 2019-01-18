@@ -10,6 +10,7 @@
 #define cpart_h
 
 #include "type.h"
+#include "memory.h"
 
 //声明计算模块的传入与传出参数列表
 #define ARGS_DECLAER(name) vector<void *> __##name##_args_in, __##name##_args_out
@@ -98,7 +99,8 @@ public:
 //    一般由lib文件中的计算模块调用的向vector中添加参数并分配内存空间而后初始化
     template<class T>
     static void addArg(vector<void *> *args,T value){
-        T *p_value = new T(value);
+        T *p_value = (T *) main_pool.b_malloc(sizeof(T));
+        *p_value = value;
         if(p_value == nullptr) throw "fail to malloc";
         args->push_back(p_value);
     }
@@ -106,9 +108,16 @@ public:
     template<class T>
     static T popArg(vector<void *> *args){
         if(args == nullptr) throw "the pointer to vector is null";
+        
         T *p_value = (T *)args->back();
+        
+        p_value = main_pool.b_get(p_value);
+        if(p_value == nullptr) throw "infomation lost";
+        
+        p_value = main_pool.b_free(p_value);
         T value = *p_value;
         args->pop_back();
+        
         return value;
     }
 };

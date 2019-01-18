@@ -6,6 +6,7 @@
 //  Copyright © 2019年 Bakantu. All rights reserved.
 //
 
+#include "memory.h"
 #include "cmap.h"
 
 

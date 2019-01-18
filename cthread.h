@@ -70,22 +70,18 @@ public:
     CThread(CMap *tp_map, int thdnum = 4);
     ~CThread();
     
-    template<class T>
 //    添加相关计算模块的传入参数
-    void AddArgs(string name, T value){
-        auto k = rargs.find(name);
-        T *p_value = new T();
-        *p_value = value;
-        (*k).second.push_back((void *)p_value);
+    void AddArgs(string name, void *pvle){
+        if(main_pool.b_get(pvle) == nullptr) throw "information lost";
+        auto argil = rargs.find(name);
+        argil->second.push_back(pvle);
     }
     
-    template<class T>
 //    添加相关计算模块的传出参数
-    void AddArgsOut(string name, T value){
-        auto k = rargs_out.find(name);
-        T *p_value = new T();
-        *p_value = value;
-        (*k).second.push_back((void *)p_value);
+    void AddArgsOut(string name, void *pvle){
+        if(main_pool.b_get(pvle) == nullptr) throw "information lost";
+        auto argol = rargs_out.find(name);
+        argol->second.push_back(pvle);
     }
     
 //    设置守护进程

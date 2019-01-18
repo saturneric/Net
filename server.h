@@ -47,17 +47,18 @@ public:
     unsigned long msg_size = 0;
 //    用简单字符串直接出适合
     void setData(string str){
-        data = (char *)malloc(str.size()+1);
-        size = str.size()+1;
+        data = (char *)malloc(str.size());
+        size = str.size();
         memcpy(data, str.data(),str.size());
-        data[str.size()+1] = '\0';
     }
 };
 
 //通用服务器类
 class Server{
 protected:
+//    缓存通用数据包
     vector<packet> packets_in;
+//    缓存带标签的二进制串管理结构
     vector<raw_data> rawdata_in;
 public:
 //    服务器类的接收套接字对象与发送套接字对象
@@ -88,7 +89,8 @@ public:
     static bool CheckRawMsg(char *p_rdt, ssize_t size);
 //    处理一个已贴上标签的原始二进制串，获得其包含的信息
     static raw_data ProcessSignedRawMsg(char *p_rdt, ssize_t size);
-    
+//    服务器守护线程
+    friend void *serverDeamon(void *psvr);
     
     
 };

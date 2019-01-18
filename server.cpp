@@ -6,10 +6,8 @@
 //  Copyright © 2019年 Bakantu. All rights reserved.
 //
 
+#include "memory.h"
 #include "server.h"
-
-list<server_clock> server_list;
-list<server_clock> process_list;
 
 extern list<clock_register> clocks_list;
 
@@ -34,7 +32,7 @@ void Server::SetSendIP(string ip_addr){
 }
 
 //    将计算结果包转化为结构数据包
-packet Server::CPURS2Packet(compute_result tcpur){
+packet CNodeServer::CPURS2Packet(compute_result tcpur){
     packet rawpkt;
     rawpkt.type = 0;
     int count = 0;
@@ -122,7 +120,7 @@ packet Server::Rawdata2Packet(raw_data trdta){
     return pkt;
 }
 
-compute_result Server::Packet2CPUR(packet *tpkt){
+compute_result CNodeServer::Packet2CPUR(packet *tpkt){
     compute_result tcpur;
     tcpur.args_in = new vector<void *>();
     tcpur.args_out = new vector<void *>();

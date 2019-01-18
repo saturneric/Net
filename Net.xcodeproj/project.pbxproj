@@ -14,6 +14,7 @@
 		92A1F29821F0C19500340EFA /* socket.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92A1F29721F0C19500340EFA /* socket.cpp */; };
 		92A1F29B21F0C5CC00340EFA /* clock.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92A1F29921F0C5CC00340EFA /* clock.cpp */; };
 		92A1F29E21F0C72C00340EFA /* addr.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92A1F29D21F0C72C00340EFA /* addr.cpp */; };
+		92A1F2A121F1663300340EFA /* memory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92A1F29F21F1663300340EFA /* memory.cpp */; };
 		92D6CE6921EE4920005AEF3B /* server.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92D6CE6721EE4920005AEF3B /* server.cpp */; };
 /* End PBXBuildFile section */
 
@@ -45,6 +46,8 @@
 		92A1F29A21F0C5CC00340EFA /* clock.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = clock.h; sourceTree = "<group>"; };
 		92A1F29C21F0C67600340EFA /* type.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = type.h; sourceTree = "<group>"; };
 		92A1F29D21F0C72C00340EFA /* addr.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = addr.cpp; sourceTree = "<group>"; };
+		92A1F29F21F1663300340EFA /* memory.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = memory.cpp; sourceTree = "<group>"; };
+		92A1F2A021F1663300340EFA /* memory.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = memory.h; sourceTree = "<group>"; };
 		92D6CE6721EE4920005AEF3B /* server.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = server.cpp; sourceTree = "<group>"; };
 		92D6CE6821EE4920005AEF3B /* server.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = server.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -89,6 +92,7 @@
 				92D6CE6721EE4920005AEF3B /* server.cpp */,
 				92A1F29921F0C5CC00340EFA /* clock.cpp */,
 				92A1F29D21F0C72C00340EFA /* addr.cpp */,
+				92A1F29F21F1663300340EFA /* memory.cpp */,
 			);
 			name = Net;
 			sourceTree = "<group>";
@@ -96,6 +100,7 @@
 		925A13AA21EC989500CBD427 /* include */ = {
 			isa = PBXGroup;
 			children = (
+				92A1F2A021F1663300340EFA /* memory.h */,
 				92A1F29A21F0C5CC00340EFA /* clock.h */,
 				925A13A821EC973000CBD427 /* cmap.h */,
 				9221DA1421EB62F6007310A7 /* cpart.h */,
@@ -168,6 +173,7 @@
 				92A1F29B21F0C5CC00340EFA /* clock.cpp in Sources */,
 				925A13A921EC973000CBD427 /* cmap.cpp in Sources */,
 				92A1F29E21F0C72C00340EFA /* addr.cpp in Sources */,
+				92A1F2A121F1663300340EFA /* memory.cpp in Sources */,
 				92D6CE6921EE4920005AEF3B /* server.cpp in Sources */,
 				92A1F29821F0C19500340EFA /* socket.cpp in Sources */,
 				925A13AD21EC9DB900CBD427 /* cthread.cpp in Sources */,

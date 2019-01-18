@@ -6,6 +6,7 @@
 //  Copyright © 2019年 Bakantu. All rights reserved.
 //
 
+#include "memory.h"
 #include "cpart.h"
 
 /**
@@ -74,15 +75,9 @@ int CPart::GetSo(void){
 
 CPart::~CPart(){
 //    释放储存接口输入参数所占用的内存
-    for(auto k = 0; k < args_in.size(); k++){
-        if(fargs_in[k] == 0) delete (int *)(args_in[k]);
-        else delete (double *)(args_in[k]);
-    }
+    for(auto arg : args_in) main_pool.b_free(arg);
 //    释放储存接口输出参数所占用的内存
-    for(auto k = 0; k < args_out.size(); k++){
-        if(fargs_in[k] == 0) delete (int *)(args_out[k]);
-        else delete (double *)(args_out[k]);
-    }
+    for(auto arg : args_out) main_pool.b_free(arg);
 //    停止对lib文件的操作
     if(handle != nullptr)
         dlclose(handle);
@@ -108,27 +103,16 @@ void CPart::setArgsType(vector<int> fargs_in, vector<int> fargs_out){
 int CPart::Run(void){
     if(func == nullptr) throw "func is nullptr";
 //    对计算模块传入参数
-    unsigned long count = fargs_in.size()-1;
-    for(auto k = args_in.rbegin(); k != args_in.rend();k++,count--){
-        if(fargs_in[count] == INT){
-            CPart::addArg(libargs_in, *((int *)(*k)));
-        }
-        else if(fargs_in[count] == DOUBLE){
-            CPart::addArg(libargs_in, *((double *)(*k)));
-        }
-    }
+    for(auto arg : args_in) libargs_in->push_back(arg);
 //    执行计算模块
     if(func() == SUCCESS){
-        int count = 0;
 //储存计算结果
-        for(auto k = libargs_out->begin(); k != libargs_out->end();k++,count++){
-            if(fargs_out[count] == INT){
-                CPart::addArg(&args_out, *((int *)(*k)));
-            }
-            else if(fargs_out[count] == DOUBLE){
-                CPart::addArg(&args_out, *((double *)(*k)));
-            }
+        for(auto arg : *libargs_out){
+//            获得内存块的访问量
+            main_pool.b_get(arg);
+            args_out.push_back(arg);
         }
+        libargs_out->clear();
         return SUCCESS;
     }
     else return -1;
@@ -140,15 +124,9 @@ int CPart::Run(void){
  */
 void CPart::Clear(void){
 //    释放传入参数所占的空间
-    for(auto k = args_in.size() - 1; ~k; k--){
-        if(fargs_in[k] == INT) delete (int *)(args_in[k]);
-        else delete (double *)(args_in[k]);
-        args_in.pop_back();
-    }
+    for(auto arg : args_in) main_pool.b_free(arg);
+    args_in.clear();
 //    释放传出参数所占用的内存空间
-    for(auto k = args_out.size() - 1; ~k; k--){
-        if(fargs_in[k] == INT) delete (int *)(args_out[k]);
-        else delete (double *)(args_out[k]);
-        args_out.pop_back();
-    }
+    for(auto arg : args_out) main_pool.b_free(arg);
+    args_out.clear();
 }
