@@ -28,6 +28,7 @@ struct compute_result{
 //通用数据包类
 class packet{
 public:
+//    数据包类型
     unsigned int type;
 //    记录块的大小及内容所在的内存地址
     vector<pair<unsigned int, void *>> buffs;

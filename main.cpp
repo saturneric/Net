@@ -14,18 +14,19 @@
 #include "cmap.h"
 #include "cthread.h"
 
-void CPMT(void){
-    CMap map("./PCS");
-    
-    CThread thread(&map);
-    thread.Analyse();
-    thread.DoLine();
-    thread.SetDaemon();
-    thread.CancelChildPCS(0);
-}
 
 int main(void){
-    initClock();
+    try{
+        Proj nproj("./PCS","pcs.proj");
+    }
+    catch(char const *error_info){
+        printf("%s\n",error_info);
+    }
+    
+    return 0;
+}
+
+void wiki_cpart(void){
     CPart ncp("./PCS","./Libs","a.cpp","A");
     void *a = main_pool.bv_malloc<double>(2.0);
     void *b = main_pool.bv_malloc<double>(3.5);
@@ -38,10 +39,7 @@ int main(void){
     printf("%d",*((int *)oa));
     main_pool.b_free(a);
     main_pool.b_free(b);
-    main_pool.b_free(c); 
-    return 0;
+    main_pool.b_free(c);
 }
-
-
 
 

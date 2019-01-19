@@ -32,42 +32,42 @@ PCSFUNC_DEFINE(name)
 //调用失败的返回
 #define FAIL -1
 
+//输入或输出入口操作柄管理类
 class LibArgsTransfer{
     friend class CPart;
-    //    计算过程参数入口或出口操作柄
+//    计算过程参数入口或出口操作柄
     vector<block_info> *args = nullptr;
-    
-    //    计算模块向入口添加自定义指针参数
+//    计算模块向入口添加自定义指针参数
     void addArgPtr(int size, void *p_arg);
-    //    清空参数入口与出口
+//    清空参数入口与出口
     void clear(void);
-    
+//    空构造函数
     LibArgsTransfer();
 public:
-    //    计算过程构造该类的唯一构造函数
+//    计算过程构造该类的唯一构造函数
     LibArgsTransfer(vector<block_info> &args){
         this->args = &args;
     }
-    //    计算过程从入口处获得参数
+//    计算过程从入口处获得参数
     template<class T>
     T get_arg(int idx){
-        T *pvle = (T *)(*args)[idx].pvle;
-        //        检查用户所提供的类型与入口该位置的参数大小是否匹配
-        if((*args)[idx].size == sizeof(T)) return *pvle;
+        T *pvle = (T *)(*args)[idx].get_pvle();
+//        检查用户所提供的类型与入口该位置的参数大小是否匹配
+        if((*args)[idx].get_size() == sizeof(T)) return *pvle;
         else throw "arg size conflict";
     }
-    //    计算过程从入口获得自定义指针参数
+//    计算过程从入口获得自定义指针参数
     template<class T>
     T *get_arg_ptr(int idx){
-        T *pvle = (*args)[idx].pvle;
+        T *pvle = (*args)[idx].get_pvle();
         return pvle;
     }
-    //    计算过程向出口末尾添加自定义指针参数
+//    计算过程向出口末尾添加自定义指针参数
     void push_arg_ptr(int size, void *p_arg){
         block_info pbifo(size,p_arg);
         args->push_back(pbifo);
     }
-    //    计算过程向出口末尾添加参数
+//    计算过程向出口末尾添加参数
     template<class T>
     void push_arg(T arg){
         T *p_arg = (T *)malloc(sizeof(T));

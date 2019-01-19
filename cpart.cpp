@@ -148,7 +148,7 @@ int CPart::Run(void){
     if(func() == SUCCESS){
 //        从出口获得传出参数到传出参数缓冲区
         for(auto libarg : *libargs_out.args){
-            void *arg = main_pool.bp_malloc(libarg.size, libarg.pvle);
+            void *arg = main_pool.bp_malloc(libarg.get_size(), libarg.get_pvle());
             args_out.push_back(arg);
         }
 //        清空出口数据
@@ -186,7 +186,7 @@ void LibArgsTransfer::addArgPtr(int size, void *p_arg){
 
 void LibArgsTransfer::clear(void){
     for(auto arg : *args)
-        free(arg.pvle);
+        free(arg.get_pvle());
     args->clear();
 }
 

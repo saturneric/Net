@@ -10,13 +10,7 @@
 		9221DA1121EB5FB8007310A7 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9221DA1021EB5FB8007310A7 /* main.cpp */; };
 		925A13A621EC68D500CBD427 /* cpart.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 925A13A421EC67C900CBD427 /* cpart.cpp */; };
 		925A13A921EC973000CBD427 /* cmap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 925A13A721EC973000CBD427 /* cmap.cpp */; };
-		925A13AD21EC9DB900CBD427 /* cthread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 925A13AB21EC9DB900CBD427 /* cthread.cpp */; };
-		92A1F29821F0C19500340EFA /* socket.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92A1F29721F0C19500340EFA /* socket.cpp */; };
-		92A1F29B21F0C5CC00340EFA /* clock.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92A1F29921F0C5CC00340EFA /* clock.cpp */; };
-		92A1F29E21F0C72C00340EFA /* addr.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92A1F29D21F0C72C00340EFA /* addr.cpp */; };
-		92A1F2A121F1663300340EFA /* memory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92A1F29F21F1663300340EFA /* memory.cpp */; };
-		92A1F2A521F21DC700340EFA /* a.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92A1F2A421F21DC700340EFA /* a.cpp */; };
-		92D6CE6921EE4920005AEF3B /* server.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92D6CE6721EE4920005AEF3B /* server.cpp */; };
+		92A1F2A821F365D800340EFA /* memory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92A1F29F21F1663300340EFA /* memory.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -176,15 +170,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				9221DA1121EB5FB8007310A7 /* main.cpp in Sources */,
-				92A1F2A521F21DC700340EFA /* a.cpp in Sources */,
+				92A1F2A821F365D800340EFA /* memory.cpp in Sources */,
 				925A13A621EC68D500CBD427 /* cpart.cpp in Sources */,
-				92A1F29B21F0C5CC00340EFA /* clock.cpp in Sources */,
 				925A13A921EC973000CBD427 /* cmap.cpp in Sources */,
-				92A1F29E21F0C72C00340EFA /* addr.cpp in Sources */,
-				92A1F2A121F1663300340EFA /* memory.cpp in Sources */,
-				92D6CE6921EE4920005AEF3B /* server.cpp in Sources */,
-				92A1F29821F0C19500340EFA /* socket.cpp in Sources */,
-				925A13AD21EC9DB900CBD427 /* cthread.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

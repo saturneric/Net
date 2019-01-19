@@ -21,17 +21,6 @@
 //计算模块入口函数类型
 typedef int(*PCSFUNC)(void);
 
-class CPart;
-
-//计算模块管理对象间的依赖关系管理结构
-class Depends{
-public:
-//    指向依赖的计算模块管理对象的指针
-    CPart *t_cpart;
-//    所依赖的输入参数在计算模块输入参数列表中的序号
-    vector<int> args;
-};
-
 //计算模块类
 class CPart{
 public:
@@ -41,10 +30,8 @@ public:
     vector<void *> args_in, args_out;
 //    计算过程入口与出口管理类
     LibArgsTransfer libargs_in, libargs_out;
-//   依赖计算对象列表
-    vector<Depends> depends;
 //    计算过程的入口函数的地址
-    int (*func)(void) = nullptr;
+    PCSFUNC func = nullptr;
 //    动态链接库操作柄
     void *handle = nullptr;
 //    源文件所在目录
