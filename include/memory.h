@@ -12,6 +12,9 @@
 #include "type.h"
 #include "memory_type.h"
 
+using std::map;
+using std::pair;
+
 class BlocksPool{
 //    内存块表
     map<void *, block_info> blocks_list;

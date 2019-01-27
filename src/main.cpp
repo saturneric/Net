@@ -18,8 +18,11 @@
 int main(int argc, char *argv[]){
     try{
         Proj nproj("./PCS","pcs.proj");
-        nproj.SearchPathInfo();
-        nproj.CheckInfo();
+        nproj.SearchInfo();
+        nproj.BuildFuncIndex();
+        nproj.CheckCptInfo();
+        nproj.CompileUsedSrcFiles();
+        nproj.CheckFuncInfo();
         //Cpt ncpt("./PCS/pcs.cpt","CPTest");
         
     }

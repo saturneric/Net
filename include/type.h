@@ -9,6 +9,8 @@
 #ifndef type_h
 #define type_h
 
+#define DEBUG
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -23,6 +25,7 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include<sys/wait.h>
 #include <sys/time.h>
 #include <sys/stat.h> 
 #include <netinet/in.h>

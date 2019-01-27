@@ -7,18 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		9277A15E21FD725F009C5F11 /* addr.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15221FD725F009C5F11 /* addr.cpp */; };
-		9277A15F21FD725F009C5F11 /* socket.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15321FD725F009C5F11 /* socket.cpp */; };
 		9277A16021FD725F009C5F11 /* md5.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15421FD725F009C5F11 /* md5.cpp */; };
 		9277A16121FD725F009C5F11 /* cproj.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15521FD725F009C5F11 /* cproj.cpp */; };
 		9277A16221FD725F009C5F11 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15621FD725F009C5F11 /* main.cpp */; };
-		9277A16321FD725F009C5F11 /* cthread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15721FD725F009C5F11 /* cthread.cpp */; };
-		9277A16421FD725F009C5F11 /* server.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15821FD725F009C5F11 /* server.cpp */; };
 		9277A16521FD725F009C5F11 /* cmap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15921FD725F009C5F11 /* cmap.cpp */; };
 		9277A16621FD725F009C5F11 /* cpart.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15A21FD725F009C5F11 /* cpart.cpp */; };
 		9277A16721FD725F009C5F11 /* memory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15B21FD725F009C5F11 /* memory.cpp */; };
 		9277A16821FD725F009C5F11 /* clock.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15C21FD725F009C5F11 /* clock.cpp */; };
-		9277A16921FD725F009C5F11 /* client.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15D21FD725F009C5F11 /* client.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -59,7 +54,8 @@
 		9277A15A21FD725F009C5F11 /* cpart.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = cpart.cpp; path = src/cpart.cpp; sourceTree = "<group>"; };
 		9277A15B21FD725F009C5F11 /* memory.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = memory.cpp; path = src/memory.cpp; sourceTree = "<group>"; };
 		9277A15C21FD725F009C5F11 /* clock.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = clock.cpp; path = src/clock.cpp; sourceTree = "<group>"; };
-		9277A15D21FD725F009C5F11 /* client.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = client.cpp; path = src/client.cpp; sourceTree = "<group>"; };
+		9277A16A21FE034F009C5F11 /* a.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = a.cpp; path = build/Debug/PCS/srcs/a.cpp; sourceTree = "<group>"; };
+		9277A16C21FE0357009C5F11 /* da.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = da.cpp; path = build/Debug/PCS/srcs/da.cpp; sourceTree = "<group>"; };
 		92A1F2A421F21DC700340EFA /* a.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = a.cpp; path = build/Debug/PCS/a.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -93,6 +89,8 @@
 		9221DA0E21EB5FAD007310A7 /* Net */ = {
 			isa = PBXGroup;
 			children = (
+				9277A16C21FE0357009C5F11 /* da.cpp */,
+				9277A16A21FE034F009C5F11 /* a.cpp */,
 				9277A15121FD724C009C5F11 /* src */,
 				92A1F2A421F21DC700340EFA /* a.cpp */,
 				925A13AA21EC989500CBD427 /* include */,
@@ -124,7 +122,6 @@
 			isa = PBXGroup;
 			children = (
 				9277A15221FD725F009C5F11 /* addr.cpp */,
-				9277A15D21FD725F009C5F11 /* client.cpp */,
 				9277A15C21FD725F009C5F11 /* clock.cpp */,
 				9277A15921FD725F009C5F11 /* cmap.cpp */,
 				9277A15A21FD725F009C5F11 /* cpart.cpp */,
@@ -197,16 +194,11 @@
 			files = (
 				9277A16721FD725F009C5F11 /* memory.cpp in Sources */,
 				9277A16821FD725F009C5F11 /* clock.cpp in Sources */,
-				9277A16921FD725F009C5F11 /* client.cpp in Sources */,
 				9277A16621FD725F009C5F11 /* cpart.cpp in Sources */,
 				9277A16121FD725F009C5F11 /* cproj.cpp in Sources */,
 				9277A16021FD725F009C5F11 /* md5.cpp in Sources */,
 				9277A16521FD725F009C5F11 /* cmap.cpp in Sources */,
-				9277A15F21FD725F009C5F11 /* socket.cpp in Sources */,
-				9277A16321FD725F009C5F11 /* cthread.cpp in Sources */,
 				9277A16221FD725F009C5F11 /* main.cpp in Sources */,
-				9277A16421FD725F009C5F11 /* server.cpp in Sources */,
-				9277A15E21FD725F009C5F11 /* addr.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -328,6 +320,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				HEADER_SEARCH_PATHS = "\"$(SRCROOT)/include\"";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -336,6 +329,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				HEADER_SEARCH_PATHS = "\"$(SRCROOT)/include\"";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
