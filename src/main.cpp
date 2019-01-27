@@ -15,9 +15,13 @@
 #include "cthread.h"
 
 
-int main(void){
+int main(int argc, char *argv[]){
     try{
         Proj nproj("./PCS","pcs.proj");
+        nproj.SearchPathInfo();
+        nproj.CheckInfo();
+        //Cpt ncpt("./PCS/pcs.cpt","CPTest");
+        
     }
     catch(char const *error_info){
         printf("%s\n",error_info);

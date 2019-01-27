@@ -33,6 +33,8 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <dlfcn.h>
+#include <dirent.h>
+#include <memory.h>
 
 using std::string;
 using std::vector;

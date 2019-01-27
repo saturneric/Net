@@ -7,10 +7,18 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		9221DA1121EB5FB8007310A7 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9221DA1021EB5FB8007310A7 /* main.cpp */; };
-		925A13A621EC68D500CBD427 /* cpart.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 925A13A421EC67C900CBD427 /* cpart.cpp */; };
-		925A13A921EC973000CBD427 /* cmap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 925A13A721EC973000CBD427 /* cmap.cpp */; };
-		92A1F2A821F365D800340EFA /* memory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92A1F29F21F1663300340EFA /* memory.cpp */; };
+		9277A15E21FD725F009C5F11 /* addr.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15221FD725F009C5F11 /* addr.cpp */; };
+		9277A15F21FD725F009C5F11 /* socket.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15321FD725F009C5F11 /* socket.cpp */; };
+		9277A16021FD725F009C5F11 /* md5.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15421FD725F009C5F11 /* md5.cpp */; };
+		9277A16121FD725F009C5F11 /* cproj.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15521FD725F009C5F11 /* cproj.cpp */; };
+		9277A16221FD725F009C5F11 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15621FD725F009C5F11 /* main.cpp */; };
+		9277A16321FD725F009C5F11 /* cthread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15721FD725F009C5F11 /* cthread.cpp */; };
+		9277A16421FD725F009C5F11 /* server.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15821FD725F009C5F11 /* server.cpp */; };
+		9277A16521FD725F009C5F11 /* cmap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15921FD725F009C5F11 /* cmap.cpp */; };
+		9277A16621FD725F009C5F11 /* cpart.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15A21FD725F009C5F11 /* cpart.cpp */; };
+		9277A16721FD725F009C5F11 /* memory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15B21FD725F009C5F11 /* memory.cpp */; };
+		9277A16821FD725F009C5F11 /* clock.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15C21FD725F009C5F11 /* clock.cpp */; };
+		9277A16921FD725F009C5F11 /* client.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15D21FD725F009C5F11 /* client.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -27,27 +35,32 @@
 
 /* Begin PBXFileReference section */
 		9221D9EB21EA5142007310A7 /* Net */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Net; sourceTree = BUILT_PRODUCTS_DIR; };
-		9221DA0F21EB5FB8007310A7 /* net.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = net.h; sourceTree = "<group>"; };
-		9221DA1021EB5FB8007310A7 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
-		9221DA1421EB62F6007310A7 /* cpart.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cpart.h; sourceTree = "<group>"; };
 		9221DA1621EB8C02007310A7 /* pcs.map */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; name = pcs.map; path = build/Debug/PCS/pcs.map; sourceTree = "<group>"; };
-		925A13A421EC67C900CBD427 /* cpart.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = cpart.cpp; sourceTree = "<group>"; };
-		925A13A721EC973000CBD427 /* cmap.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = cmap.cpp; sourceTree = "<group>"; };
-		925A13A821EC973000CBD427 /* cmap.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cmap.h; sourceTree = "<group>"; };
-		925A13AB21EC9DB900CBD427 /* cthread.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = cthread.cpp; sourceTree = "<group>"; };
-		925A13AC21EC9DB900CBD427 /* cthread.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cthread.h; sourceTree = "<group>"; };
-		92A1F29721F0C19500340EFA /* socket.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = socket.cpp; sourceTree = "<group>"; };
-		92A1F29921F0C5CC00340EFA /* clock.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = clock.cpp; sourceTree = "<group>"; };
-		92A1F29A21F0C5CC00340EFA /* clock.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = clock.h; sourceTree = "<group>"; };
-		92A1F29C21F0C67600340EFA /* type.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = type.h; sourceTree = "<group>"; };
-		92A1F29D21F0C72C00340EFA /* addr.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = addr.cpp; sourceTree = "<group>"; };
-		92A1F29F21F1663300340EFA /* memory.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = memory.cpp; sourceTree = "<group>"; };
-		92A1F2A021F1663300340EFA /* memory.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = memory.h; sourceTree = "<group>"; };
+		9277A14521FD7246009C5F11 /* cproj.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = cproj.hpp; path = include/cproj.hpp; sourceTree = "<group>"; };
+		9277A14621FD7246009C5F11 /* cmap.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = cmap.h; path = include/cmap.h; sourceTree = "<group>"; };
+		9277A14721FD7246009C5F11 /* server.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = server.h; path = include/server.h; sourceTree = "<group>"; };
+		9277A14821FD7246009C5F11 /* net.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = net.h; path = include/net.h; sourceTree = "<group>"; };
+		9277A14921FD7246009C5F11 /* compute.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = compute.h; path = include/compute.h; sourceTree = "<group>"; };
+		9277A14A21FD7246009C5F11 /* cthread.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = cthread.h; path = include/cthread.h; sourceTree = "<group>"; };
+		9277A14B21FD7246009C5F11 /* cpart.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = cpart.h; path = include/cpart.h; sourceTree = "<group>"; };
+		9277A14C21FD7246009C5F11 /* clock.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = clock.h; path = include/clock.h; sourceTree = "<group>"; };
+		9277A14D21FD7246009C5F11 /* md5.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = md5.h; path = include/md5.h; sourceTree = "<group>"; };
+		9277A14E21FD7246009C5F11 /* memory.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = memory.h; path = include/memory.h; sourceTree = "<group>"; };
+		9277A14F21FD7246009C5F11 /* memory_type.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = memory_type.h; path = include/memory_type.h; sourceTree = "<group>"; };
+		9277A15021FD7246009C5F11 /* type.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = type.h; path = include/type.h; sourceTree = "<group>"; };
+		9277A15221FD725F009C5F11 /* addr.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = addr.cpp; path = src/addr.cpp; sourceTree = "<group>"; };
+		9277A15321FD725F009C5F11 /* socket.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = socket.cpp; path = src/socket.cpp; sourceTree = "<group>"; };
+		9277A15421FD725F009C5F11 /* md5.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = md5.cpp; path = src/md5.cpp; sourceTree = "<group>"; };
+		9277A15521FD725F009C5F11 /* cproj.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = cproj.cpp; path = src/cproj.cpp; sourceTree = "<group>"; };
+		9277A15621FD725F009C5F11 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = src/main.cpp; sourceTree = "<group>"; };
+		9277A15721FD725F009C5F11 /* cthread.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = cthread.cpp; path = src/cthread.cpp; sourceTree = "<group>"; };
+		9277A15821FD725F009C5F11 /* server.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = server.cpp; path = src/server.cpp; sourceTree = "<group>"; };
+		9277A15921FD725F009C5F11 /* cmap.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = cmap.cpp; path = src/cmap.cpp; sourceTree = "<group>"; };
+		9277A15A21FD725F009C5F11 /* cpart.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = cpart.cpp; path = src/cpart.cpp; sourceTree = "<group>"; };
+		9277A15B21FD725F009C5F11 /* memory.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = memory.cpp; path = src/memory.cpp; sourceTree = "<group>"; };
+		9277A15C21FD725F009C5F11 /* clock.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = clock.cpp; path = src/clock.cpp; sourceTree = "<group>"; };
+		9277A15D21FD725F009C5F11 /* client.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = client.cpp; path = src/client.cpp; sourceTree = "<group>"; };
 		92A1F2A421F21DC700340EFA /* a.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = a.cpp; path = build/Debug/PCS/a.cpp; sourceTree = "<group>"; };
-		92A1F2A621F2412500340EFA /* compute.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = compute.h; sourceTree = "<group>"; };
-		92A1F2A721F242C900340EFA /* memory_type.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = memory_type.h; sourceTree = "<group>"; };
-		92D6CE6721EE4920005AEF3B /* server.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = server.cpp; sourceTree = "<group>"; };
-		92D6CE6821EE4920005AEF3B /* server.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = server.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -80,18 +93,10 @@
 		9221DA0E21EB5FAD007310A7 /* Net */ = {
 			isa = PBXGroup;
 			children = (
+				9277A15121FD724C009C5F11 /* src */,
 				92A1F2A421F21DC700340EFA /* a.cpp */,
 				925A13AA21EC989500CBD427 /* include */,
-				9221DA1021EB5FB8007310A7 /* main.cpp */,
-				92A1F29721F0C19500340EFA /* socket.cpp */,
 				9221DA1621EB8C02007310A7 /* pcs.map */,
-				925A13A421EC67C900CBD427 /* cpart.cpp */,
-				925A13A721EC973000CBD427 /* cmap.cpp */,
-				925A13AB21EC9DB900CBD427 /* cthread.cpp */,
-				92D6CE6721EE4920005AEF3B /* server.cpp */,
-				92A1F29921F0C5CC00340EFA /* clock.cpp */,
-				92A1F29D21F0C72C00340EFA /* addr.cpp */,
-				92A1F29F21F1663300340EFA /* memory.cpp */,
 			);
 			name = Net;
 			sourceTree = "<group>";
@@ -99,18 +104,39 @@
 		925A13AA21EC989500CBD427 /* include */ = {
 			isa = PBXGroup;
 			children = (
-				92A1F2A021F1663300340EFA /* memory.h */,
-				92A1F29A21F0C5CC00340EFA /* clock.h */,
-				925A13A821EC973000CBD427 /* cmap.h */,
-				9221DA1421EB62F6007310A7 /* cpart.h */,
-				925A13AC21EC9DB900CBD427 /* cthread.h */,
-				9221DA0F21EB5FB8007310A7 /* net.h */,
-				92D6CE6821EE4920005AEF3B /* server.h */,
-				92A1F29C21F0C67600340EFA /* type.h */,
-				92A1F2A621F2412500340EFA /* compute.h */,
-				92A1F2A721F242C900340EFA /* memory_type.h */,
+				9277A14C21FD7246009C5F11 /* clock.h */,
+				9277A14621FD7246009C5F11 /* cmap.h */,
+				9277A14921FD7246009C5F11 /* compute.h */,
+				9277A14B21FD7246009C5F11 /* cpart.h */,
+				9277A14521FD7246009C5F11 /* cproj.hpp */,
+				9277A14A21FD7246009C5F11 /* cthread.h */,
+				9277A14D21FD7246009C5F11 /* md5.h */,
+				9277A14F21FD7246009C5F11 /* memory_type.h */,
+				9277A14E21FD7246009C5F11 /* memory.h */,
+				9277A14821FD7246009C5F11 /* net.h */,
+				9277A14721FD7246009C5F11 /* server.h */,
+				9277A15021FD7246009C5F11 /* type.h */,
 			);
 			name = include;
+			sourceTree = "<group>";
+		};
+		9277A15121FD724C009C5F11 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				9277A15221FD725F009C5F11 /* addr.cpp */,
+				9277A15D21FD725F009C5F11 /* client.cpp */,
+				9277A15C21FD725F009C5F11 /* clock.cpp */,
+				9277A15921FD725F009C5F11 /* cmap.cpp */,
+				9277A15A21FD725F009C5F11 /* cpart.cpp */,
+				9277A15521FD725F009C5F11 /* cproj.cpp */,
+				9277A15721FD725F009C5F11 /* cthread.cpp */,
+				9277A15621FD725F009C5F11 /* main.cpp */,
+				9277A15421FD725F009C5F11 /* md5.cpp */,
+				9277A15B21FD725F009C5F11 /* memory.cpp */,
+				9277A15821FD725F009C5F11 /* server.cpp */,
+				9277A15321FD725F009C5F11 /* socket.cpp */,
+			);
+			name = src;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -169,10 +195,18 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				9221DA1121EB5FB8007310A7 /* main.cpp in Sources */,
-				92A1F2A821F365D800340EFA /* memory.cpp in Sources */,
-				925A13A621EC68D500CBD427 /* cpart.cpp in Sources */,
-				925A13A921EC973000CBD427 /* cmap.cpp in Sources */,
+				9277A16721FD725F009C5F11 /* memory.cpp in Sources */,
+				9277A16821FD725F009C5F11 /* clock.cpp in Sources */,
+				9277A16921FD725F009C5F11 /* client.cpp in Sources */,
+				9277A16621FD725F009C5F11 /* cpart.cpp in Sources */,
+				9277A16121FD725F009C5F11 /* cproj.cpp in Sources */,
+				9277A16021FD725F009C5F11 /* md5.cpp in Sources */,
+				9277A16521FD725F009C5F11 /* cmap.cpp in Sources */,
+				9277A15F21FD725F009C5F11 /* socket.cpp in Sources */,
+				9277A16321FD725F009C5F11 /* cthread.cpp in Sources */,
+				9277A16221FD725F009C5F11 /* main.cpp in Sources */,
+				9277A16421FD725F009C5F11 /* server.cpp in Sources */,
+				9277A15E21FD725F009C5F11 /* addr.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
