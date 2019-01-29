@@ -48,4 +48,6 @@ using std::ifstream;
 using std::cout;
 using std::endl;
 
+typedef char Byte;
+
 #endif /* type_h */
