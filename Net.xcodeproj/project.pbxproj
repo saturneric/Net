@@ -14,6 +14,7 @@
 		9277A16621FD725F009C5F11 /* cpart.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15A21FD725F009C5F11 /* cpart.cpp */; };
 		9277A16721FD725F009C5F11 /* memory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15B21FD725F009C5F11 /* memory.cpp */; };
 		9277A16821FD725F009C5F11 /* clock.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15C21FD725F009C5F11 /* clock.cpp */; };
+		9277A18921FEB21D009C5F11 /* libsqlite3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 9277A18821FEB21D009C5F11 /* libsqlite3.dylib */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -56,7 +57,7 @@
 		9277A15C21FD725F009C5F11 /* clock.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = clock.cpp; path = src/clock.cpp; sourceTree = "<group>"; };
 		9277A16A21FE034F009C5F11 /* a.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = a.cpp; path = build/Debug/PCS/srcs/a.cpp; sourceTree = "<group>"; };
 		9277A16C21FE0357009C5F11 /* da.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = da.cpp; path = build/Debug/PCS/srcs/da.cpp; sourceTree = "<group>"; };
-		92A1F2A421F21DC700340EFA /* a.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = a.cpp; path = build/Debug/PCS/a.cpp; sourceTree = "<group>"; };
+		9277A18821FEB21D009C5F11 /* libsqlite3.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libsqlite3.dylib; path = build/Debug/Libraries/libsqlite3.dylib; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -64,6 +65,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9277A18921FEB21D009C5F11 /* libsqlite3.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -75,6 +77,7 @@
 			children = (
 				9221DA0E21EB5FAD007310A7 /* Net */,
 				9221D9EC21EA5142007310A7 /* Products */,
+				9277A18721FEB21D009C5F11 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -91,9 +94,8 @@
 			children = (
 				9277A16C21FE0357009C5F11 /* da.cpp */,
 				9277A16A21FE034F009C5F11 /* a.cpp */,
-				9277A15121FD724C009C5F11 /* src */,
-				92A1F2A421F21DC700340EFA /* a.cpp */,
 				925A13AA21EC989500CBD427 /* include */,
+				9277A15121FD724C009C5F11 /* src */,
 				9221DA1621EB8C02007310A7 /* pcs.map */,
 			);
 			name = Net;
@@ -134,6 +136,14 @@
 				9277A15321FD725F009C5F11 /* socket.cpp */,
 			);
 			name = src;
+			sourceTree = "<group>";
+		};
+		9277A18721FEB21D009C5F11 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				9277A18821FEB21D009C5F11 /* libsqlite3.dylib */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -321,6 +331,10 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				HEADER_SEARCH_PATHS = "\"$(SRCROOT)/include\"";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/build/Debug/Libraries",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -330,6 +344,10 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				HEADER_SEARCH_PATHS = "\"$(SRCROOT)/include\"";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/build/Debug/Libraries",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;

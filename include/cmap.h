@@ -183,18 +183,35 @@ public:
         string::size_type lcma_dix = 0;
         string::size_type cma_idx = args.find(",",0);
         vector<cpt_func_args> cfgs;
-//        分割逗号
-        while(cma_idx != string::npos){
-            string arg = args.substr(lcma_dix,cma_idx-lcma_dix);
-            deal_arg(arg);
-            lcma_dix = cma_idx+1;
-            cma_idx = args.find(",",lcma_dix);
-            if(cma_idx == string::npos && lcma_dix != string::npos){
-                arg = args.substr(lcma_dix,args.size()-lcma_dix);
-                cpt_func_args ncfg = deal_arg(arg);
+        
+        if(cma_idx == string::npos){
+            string real_args;
+            for(auto c : args){
+                if(isgraph(c)){
+                    real_args.push_back(c);
+                    if(!if_illegal(c)) throw "func name has illegal char";
+                }
+            }
+            if(real_args.size() > 3){
+                cpt_func_args ncfg = deal_arg(args);
                 cfgs.push_back(ncfg);
             }
-            
+        }
+        else{
+//            分割逗号
+            while(cma_idx != string::npos){
+                string arg = args.substr(lcma_dix,cma_idx-lcma_dix);
+                cpt_func_args ncfg;
+                ncfg = deal_arg(arg);
+                cfgs.push_back(ncfg);
+                lcma_dix = cma_idx+1;
+                cma_idx = args.find(",",lcma_dix);
+                if(cma_idx == string::npos && lcma_dix != string::npos){
+                    arg = args.substr(lcma_dix,args.size()-lcma_dix);
+                    ncfg = deal_arg(arg);
+                    cfgs.push_back(ncfg);
+                }
+            }
         }
         return cfgs;
     }
@@ -235,6 +252,32 @@ class Map: public Cpt{
 };
 
 
+struct SQLTable{
+    string name;
+    vector<pair<string, string>> colnums;
+};
+
+struct SQLItem{
+    vector<string> colnum;
+    vector<string> argv;
+};
+
+struct SQLCallBack{
+    unsigned long size;
+    vector<SQLItem> items;
+    string errmsg;
+    int sql_rtn;
+};
+
+namespace sql {
+    int SQLCallBackFunc(void *data, int argc, char **argv, char **azColName);
+    SQLCallBack *sql_exec(sqlite3 *psql, string sql);
+    int table_create(sqlite3 *psql, string name, vector<pair<string, string>> colnums);
+    int insert_info(sqlite3 *psql, sqlite3_stmt **psqlsmt, string table_name, vector<pair<string, string>>value);
+    string string_type(string str);
+}
+
+
 class Proj:public setting_file{
 //    计算工程所在的目录
     string proj_path;
@@ -266,7 +309,10 @@ class Proj:public setting_file{
     map<string, Cpt *> func_index;
 //    动态链接库对应的源文件索引
     map<string, string> lib_index;
-    
+//    工程对应数据库
+    sqlite3 *psql;
+//    数据库文件路径
+    string db_path;
 //    判断参数是否为字符串
     bool if_string(string &arg){
         if(arg[0] == '\"' && arg[arg.size()-1] == '\"') return true;
@@ -318,7 +364,7 @@ protected:
 //                如果在索引中没有找到对应的源文件
                 if(src_file == src_files.end()){
 #ifdef DEBUG
-                    printf("Fail To Find Soruce File Related %s\n",file.data());
+                    printf("[Error]Fail To Find Soruce File Related %s\n",file.data());
 #endif
                     throw "source file not exist";
                 }
@@ -386,7 +432,7 @@ protected:
             }
             else{
 #ifdef DEBUG
-                printf("Caught Errors or Warrnings In Compiling File %s\n",srcfile_path.data());
+                printf("[Error]Caught Errors or Warrnings In Compiling File %s\n",srcfile_path.data());
 #endif
                 throw "compile error";
             }
@@ -394,7 +440,315 @@ protected:
         else throw "fail to build lib file";
     }
     
+    void build_new_db(void){
+        string db_dir = proj_path+"dbs";
+        if(mkdir(db_dir.data(), S_IRWXU | S_IRWXG | S_IRWXO) == -1){
+            if(!~access(db_dir.data(), X_OK)){
+#ifdef DEBUG
+                printf("[Error]Caught Error In Creating Directory dbs\n");
+#endif
+                throw "fail to make dir dbs";
+            }
+        }
+        db_path = proj_path+"dbs/"+name+".db";
+        int sqlrtn = sqlite3_open(db_path.data(), &psql);
+        if(!sqlrtn){
+//            创建数据库表
+//            记录源文件信息
+            sql::table_create(psql, "srcfiles", {
+//                ID
+                {"id","INT  PRIMARY KEY  NOT NULL"},
+//                文件名
+                {"name","TEXT NOT NULL"},
+//                文件路径
+                {"path","TEXT NOT NULL"},
+//                文件内容
+                {"content","NONE"},
+//                文件MD5
+                {"md5","TEXT NOT NULL"}
+            });
+//            记录入口函数信息
+            sql::table_create(psql, "functions", {
+//                ID
+                {"id","INT  PRIMARY KEY  NOT NULL"},
+//                入口函数名
+                {"name","TEXT NOT NULL"},
+//                入口函数所在的源文件在数据库中对应的ID
+                {"srcfile_id","INT NOT NULL"},
+//                入口函数所在的动态链接库在数据库中对应的ID
+                {"libfile_id","INT NOT NULL"}
+            });
+//            记录cpt文件信息
+            sql::table_create(psql, "cptfiles", {
+//                ID
+                {"id","INT  PRIMARY KEY  NOT NULL"},
+//                cpt文件名及其路径
+                {"pname","TEXT NOT NULL"},
+//                cpt文件内容
+                {"content","NONE"},
+//                cpt文件MD5
+                {"md5","TEXT NOT NULL"}
+            });
+//            记录动态链接库信息
+            sql::table_create(psql, "libfiles", {
+//                ID
+                {"id","INT  PRIMARY KEY  NOT NULL"},
+//                动态链接库文件名
+                {"name","TEXT NOT NULL"},
+//                动态链接库文件内容
+                {"content","NONE"},
+            });
+        }
+        else{
+#ifdef DEBUG
+            printf("[Error] Fail To Create DB File %s\n",db_path.data());
+#endif
+            throw "fail to create db file";
+        }
+        
+    }
     
+//    写入项目涉及的源文件信息到数据库中
+    void write_src_info(void){
+        int idx = 0;
+        sqlite3_stmt *psqlsmt;
+//        编译SQL语句
+        sql::insert_info(psql, &psqlsmt, "srcfiles", {
+            {"id","?1"},
+            {"name","?2"},
+            {"path","?3"},
+            {"md5","?4"}
+        });
+#ifdef DEBUG
+        printf("Writing Srcfiles Information Into Database.\n");
+#endif
+        for(auto src:used_srcfiles){
+//            获取源文件的MD5
+            string md5 = src_md5.find(src.first)->second;
+//            链接数据
+            sqlite3_bind_int(psqlsmt, 1, idx++);
+            sqlite3_bind_text(psqlsmt, 2, src.first.data(), -1, SQLITE_STATIC);
+            sqlite3_bind_text(psqlsmt, 3, src_paths[src.second].data(), -1, SQLITE_STATIC);
+            sqlite3_bind_text(psqlsmt, 4, md5.data(), -1, SQLITE_STATIC);
+//            执行SQL语句
+            int rtn = sqlite3_step(psqlsmt);
+            if(rtn == SQLITE_OK || rtn == SQLITE_DONE){
+#ifdef DEBUG
+                printf("[*]Succeed In Writing Srcfiles Information %s\n",src.first.data());
+#endif
+            }
+            else{
+#ifdef DEBUG
+                printf("[*]Failed to Write Srcfiles Information %s\n",src.first.data());
+#endif
+            }
+            sqlite3_reset(psqlsmt);
+        }
+    }
+    
+//    写入动态链接库信息到数据库中
+    void write_lib_info(void){
+        int idx = 0;
+        sqlite3_stmt *psqlsmt;
+        sql::insert_info(psql, &psqlsmt, "libfiles", {
+            {"id","?1"},
+            {"name","?2"}
+        });
+#ifdef DEBUG
+        printf("Writing Libfiles Information Into Database.\n");
+#endif
+        for(auto lib : lib_index){
+//            链接数据
+            sqlite3_bind_int(psqlsmt, 1, idx++);
+            sqlite3_bind_text(psqlsmt, 2, lib.second.data(), -1, SQLITE_STATIC);
+//            执行SQL语句
+            int rtn = sqlite3_step(psqlsmt);
+            if(rtn == SQLITE_OK || rtn == SQLITE_DONE){
+#ifdef DEBUG
+                printf("[*]Succeed In Writing Libfile Information %s\n",lib.second.data());
+#endif
+            }
+            else{
+#ifdef DEBUG
+                printf("[*]Failed to Write Libfile Information %s\n",lib.second.data());
+#endif
+            }
+            sqlite3_reset(psqlsmt);
+        }
+    }
+    
+//    写入入口函数信息到数据库中
+    void write_func_info(void){
+        int idx = 0;
+        sqlite3_stmt *psqlsmt;
+        sql::insert_info(psql, &psqlsmt, "functions", {
+            {"id","?1"},
+            {"name","?2"},
+            {"srcfile_id","?3"},
+            {"libfile_id","?4"}
+        });
+#ifdef DEBUG
+        printf("Writing Functions Information Into Database.\n");
+#endif
+        for(auto func : func_index){
+            string src_file = func.second->funcs_src.find(func.first)->second;
+            string lib_file = lib_index.find(src_file)->second;
+            string sql_quote = "SELECT id FROM srcfiles WHERE name = "+sql::string_type(src_file)+";";
+//            查找源文件信息在数据库中的ID
+            SQLCallBack *psqlcb =  sql::sql_exec(psql, sql_quote);
+            if(psqlcb->size != 1){
+#ifdef DEBUG
+                printf("[Error]Database Data Is Abnormal.\n");
+#endif
+                throw "database abnormal";
+            }
+            std::stringstream ss;
+            ss<<psqlcb->items[0].argv[0];
+            int srcfile_id = -1;
+            ss>>srcfile_id;
+            if(psqlcb->items[0].colnum[0] != "id" || srcfile_id == -1){
+#ifdef DEBUG
+                printf("[Error]Database Data Is Abnormal In Table srcfiles\n");
+#endif
+                throw "database abnormal";
+            }
+            delete psqlcb;
+//            查找动态链接库信息在数据库中的ID
+            sql_quote = "SELECT id FROM libfiles WHERE name = "+sql::string_type(lib_file)+";";
+            psqlcb =  sql::sql_exec(psql, sql_quote);
+            if(psqlcb->size != 1){
+#ifdef DEBUG
+                printf("[Error]Database Data Is Abnormal In Table libfiles\n");
+#endif
+                throw "database abnormal";
+            }
+            std::stringstream ssl;
+            ssl<<psqlcb->items[0].argv[0];
+            int libfile_id = -1;
+            ssl>>libfile_id;
+            if(psqlcb->items[0].colnum[0] != "id" || libfile_id == -1){
+#ifdef DEBUG
+                printf("[Error]Database Data Is Abnormal In Table libfiles\n");
+#endif
+                throw "database abnormal";
+            }
+            delete psqlcb;
+//            链接数据
+            sqlite3_bind_int(psqlsmt, 1, idx++);
+            sqlite3_bind_text(psqlsmt, 2, func.first.data(), -1, SQLITE_STATIC);
+            sqlite3_bind_int(psqlsmt, 3, srcfile_id);
+            sqlite3_bind_int(psqlsmt, 4, libfile_id);
+            
+//            执行SQL语句
+            int rtn = sqlite3_step(psqlsmt);
+            if(rtn == SQLITE_OK || rtn == SQLITE_DONE){
+#ifdef DEBUG
+                printf("[*]Succeed In Writing Function Information %s\n",func.first.data());
+#endif
+            }
+            else{
+#ifdef DEBUG
+                printf("[*]Failed to Write Function Information %s\n",func.first.data());
+#endif
+            }
+            sqlite3_reset(psqlsmt);
+        }
+    }
+    
+//    写入口函数入输入输出参数信息到数据库中
+    void write_args_info(void){
+#ifdef DEBUG
+        printf("Start to Write Function Parameter Information Into Database.\n");
+#endif
+        for(auto func : func_index){
+            vector<cpt_func_args> *pfin = &func.second->fargs_in.find(func.first)->second;
+            vector<cpt_func_args> *pfout = &func.second->fargs_out.find(func.first)->second;
+//            创建对应的储存表
+            sql::table_create(psql, func.first, {
+//                ID
+                {"id","INT  PRIMARY KEY  NOT NULL"},
+//                数据类型
+                {"type","TEXT  NOT NULL"},
+//                顺序序号
+                {"idx","INT  NOT NULL"},
+//                输入或输出标识(0输入，1输出)
+                {"io","INT  NOT NULL"},
+//                标签名
+                {"key","TEXT"},
+//                数据单元个数
+                {"size","INT  NOT NULL"}
+            });
+            
+            sqlite3_stmt *psqlsmt;
+            
+//            生成并编译SQL语句
+            sql::insert_info(psql, &psqlsmt, func.first, {
+                {"id","?6"},
+                {"type","?1"},
+                {"idx","?2"},
+                {"io","?3"},
+                {"key","?4"},
+                {"size","?5"}
+            });
+            
+            int idx = 0, sidx = 0;
+#ifdef DEBUG
+            printf("Writing Function Parameter (IN) Information Into Database (%s)\n",func.first.data());
+#endif
+//            写入输入参数
+            for(auto arg : *pfin){
+//                连接数据
+                sqlite3_bind_text(psqlsmt, 1, arg.type.data(), -1, SQLITE_STATIC);
+                sqlite3_bind_int(psqlsmt, 2, idx++);
+                sqlite3_bind_int(psqlsmt, 3, 0);
+                sqlite3_bind_text(psqlsmt,4, arg.key.data(), -1, SQLITE_STATIC);
+                sqlite3_bind_int(psqlsmt, 5, arg.size);
+                sqlite3_bind_int(psqlsmt, 6, sidx++);
+//                执行SQL语句
+                int rtn = sqlite3_step(psqlsmt);
+                if(rtn == SQLITE_OK || rtn == SQLITE_DONE){
+#ifdef DEBUG
+                    printf("[*]Succeed In Writing Function Parameter Information %s\n",func.first.data());
+#endif
+                }
+                else{
+#ifdef DEBUG
+                    printf("[*]Failed to Write Function Parameter Information %s\n",func.first.data());
+#endif
+                }
+                sqlite3_reset(psqlsmt);
+            }
+            
+#ifdef DEBUG
+            printf("Writing Function Parameter (OUT) Information Into Database (%s)\n",func.first.data());
+#endif
+            idx = 0;
+//            写入输入参数
+            for(auto arg : *pfout){
+//                连接数据
+                sqlite3_bind_text(psqlsmt, 1, arg.type.data(), -1, SQLITE_STATIC);
+                sqlite3_bind_int(psqlsmt, 2, idx++);
+                sqlite3_bind_int(psqlsmt, 3, 1);
+                sqlite3_bind_text(psqlsmt,4, arg.key.data(), -1, SQLITE_STATIC);
+                sqlite3_bind_int(psqlsmt, 5, arg.size);
+                sqlite3_bind_int(psqlsmt, 6, sidx++);
+                
+//                执行SQL语句
+                int rtn = sqlite3_step(psqlsmt);
+                if(rtn == SQLITE_OK || rtn == SQLITE_DONE){
+#ifdef DEBUG
+                    printf("[*]Succeed In Writing Function Parameter Information %s\n",func.first.data());
+#endif
+                }
+                else{
+#ifdef DEBUG
+                    printf("[*]Failed to Write Function Parameter Information %s\n",func.first.data());
+#endif
+                }
+                sqlite3_reset(psqlsmt);
+            }
+        }
+    }
     
 public:
     Proj(string t_projpath, string t_projfile){
@@ -514,7 +868,9 @@ public:
 //    检查入口函数是否在对应的动态链接库中可被按要求正确解析
     void CheckFuncInfo(void){
         for(auto func : func_index){
+//            找到入口函数所在的源文件
             string src_file = func.second->funcs_src.find(func.first)->second;
+//            找到入口函数所在的动态链接库
             string tlib_name = lib_index.find(src_file)->second;
             string tlib_path = proj_path+lib_path+"/"+tlib_name;
 #ifdef DEBUG
@@ -581,6 +937,14 @@ public:
 #endif
             dlclose(lib_handle);
         }
+    }
+    
+    void DBProcess(void){
+        build_new_db();
+        write_src_info();
+        write_lib_info();
+        write_func_info();
+        write_args_info();
     }
     
    

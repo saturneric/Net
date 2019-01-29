@@ -9,8 +9,6 @@
 #ifndef type_h
 #define type_h
 
-#define DEBUG
-
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -38,6 +36,8 @@
 #include <dlfcn.h>
 #include <dirent.h>
 #include <memory.h>
+#include <sqlite3.h>
+
 
 using std::string;
 using std::vector;

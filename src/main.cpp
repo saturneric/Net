@@ -23,6 +23,7 @@ int main(int argc, char *argv[]){
         nproj.CheckCptInfo();
         nproj.CompileUsedSrcFiles();
         nproj.CheckFuncInfo();
+        nproj.DBProcess();
         //Cpt ncpt("./PCS/pcs.cpt","CPTest");
         
     }
