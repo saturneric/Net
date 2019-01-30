@@ -16,6 +16,14 @@
 
 class Proj;
 
+//检查数据库表专用信息储存结构
+struct check_table_column{
+    string name;
+    string type;
+    int notnull;
+    int pk;
+};
+
 //配置文件通用方法类
 class setting_file{
 protected:
@@ -172,6 +180,8 @@ class Proj:public setting_file{
     void write_proj_info(void);
 //    检查数据库是否正确
     void check_database(void);
+//    检查数据库表
+    void check_table(int cnum, vector<check_table_column> tctc,sqlite3_stmt *psqlsmt);
 public:
 //    读取Proj文件
     Proj(string t_projpath, string t_projfile);
@@ -191,6 +201,7 @@ public:
     void DBProcess(void);
 //    获得工程名
     string GetName(void);
+//    更新工程
     void UpdateProcess(void);
 };
 

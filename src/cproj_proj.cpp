@@ -230,6 +230,7 @@ void Proj::write_src_info(void){
         sqlite3_reset(psqlsmt);
         sqlite3_clear_bindings(psqlsmt);
     }
+    sqlite3_finalize(psqlsmt);
 }
 
 //写入动态链接库信息到数据库中
@@ -262,6 +263,7 @@ void Proj::write_lib_info(void){
         sqlite3_reset(psqlsmt);
         sqlite3_clear_bindings(psqlsmt);
     }
+    sqlite3_finalize(psqlsmt);
 }
 
 //    写入入口函数信息到数据库中
@@ -341,6 +343,7 @@ void Proj::write_func_info(void){
         sqlite3_reset(psqlsmt);
         sqlite3_clear_bindings(psqlsmt);
     }
+    sqlite3_finalize(psqlsmt);
 }
 
 //写入口函数入输入输出参数信息到数据库中
@@ -437,6 +440,7 @@ void Proj::write_args_info(void){
             sqlite3_reset(psqlsmt);
             sqlite3_clear_bindings(psqlsmt);
         }
+        sqlite3_finalize(psqlsmt);
     }
 }
 
@@ -482,6 +486,7 @@ void Proj::write_cpt_info(void){
         sqlite3_reset(psqlsmt);
         sqlite3_clear_bindings(psqlsmt);
     }
+    sqlite3_finalize(psqlsmt);
 }
 //写入工程描述文件信息到数据库中
 void Proj::write_proj_info(void){
@@ -520,9 +525,170 @@ void Proj::write_proj_info(void){
     }
     sqlite3_reset(psqlsmt);
     sqlite3_clear_bindings(psqlsmt);
+    sqlite3_finalize(psqlsmt);
     
 }
 
+void Proj::check_database(void){
+//    编译SQL语句
+    string sql_quote = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?1";
+    sqlite3_stmt *psqlsmt;
+    const char *pzTail;
+    sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+//    检查数据库表是否存在
+#ifdef DEBUG
+    printf("Start To Check Tables In Database\n");
+#endif
+    const char *tables[] = {"srcfiles","cptfiles","functions","projfile","libfiles","projfile"};
+    for(auto strc : tables){
+        sqlite3_bind_text(psqlsmt, 1, strc, -1, SQLITE_STATIC);
+//        执行SQL语句
+        int rtn = sqlite3_step(psqlsmt);
+        if(rtn == SQLITE_OK || rtn == SQLITE_DONE || rtn == SQLITE_ROW){
+#ifdef DEBUG
+            printf("[*]Succeed In Selecting Table %s\n",strc);
+#endif
+        }
+        else{
+#ifdef DEBUG
+            printf("[*]Failed to Select Table %s\n",strc);
+#endif
+            throw "fail to select";
+        }
+        int ifhas = sqlite3_column_int(psqlsmt, 0);
+        if(ifhas != 1){
+#ifdef DEBUG
+            printf("Table Is Abnormal %s\n",strc);
+#endif
+            throw "table is abnormal";
+        }
+        sqlite3_reset(psqlsmt);
+        sqlite3_clear_bindings(psqlsmt);
+    }
+    sqlite3_finalize(psqlsmt);
+    
+//    检查数据库表srcfiles其项及其类型是否正确
+    sql_quote = "PRAGMA table_info( srcfiles );";
+    sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+#ifdef DEBUG
+    printf("Start To Check Table Columns srcfiles\n");
+#endif
+    vector<check_table_column> sctc={
+        {"id","INT",1,1},
+        {"name","TEXT",1,0},
+        {"path","TEXT",1,0},
+        {"content","NONE",0,0},
+        {"md5","TEXT",1,0}
+    };
+    check_table(5, sctc, psqlsmt);
+    sqlite3_finalize(psqlsmt);
+    
+//    检查数据库表libfiles其项及其类型是否正确
+    sql_quote = "PRAGMA table_info( libfiles );";
+    sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+#ifdef DEBUG
+    printf("Start To Check Table Columns libfiles\n");
+#endif
+    sctc={
+        {"id","INT",1,1},
+        {"name","TEXT",1,0},
+        {"content","NONE",0,0}
+    };
+    check_table(3, sctc, psqlsmt);
+    sqlite3_finalize(psqlsmt);
+    
+//    检查数据库表cptfiles其项及其类型是否正确
+    sql_quote = "PRAGMA table_info( cptfiles );";
+    sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+#ifdef DEBUG
+    printf("Start To Check Table Columns cptfiles\n");
+#endif
+    sctc={
+        {"id","INT",1,1},
+        {"path","TEXT",1,0},
+        {"content","NONE",0,0},
+        {"md5","TEXT",1,0}
+    };
+    check_table(4, sctc, psqlsmt);
+    sqlite3_finalize(psqlsmt);
+    
+//    检查数据库表functions其项及其类型是否正确
+    sql_quote = "PRAGMA table_info( functions );";
+    sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+#ifdef DEBUG
+    printf("Start To Check Table Columns functions\n");
+#endif
+    sctc={
+        {"id","INT",1,1},
+        {"name","TEXT",1,0},
+        {"srcfile_id","INT",1,0},
+        {"srcfile_id","INT",1,0}
+    };
+    check_table(4, sctc, psqlsmt);
+    sqlite3_finalize(psqlsmt);
+    
+//    检查数据库表projfile其项及其类型是否正确
+    sql_quote = "PRAGMA table_info( projfile );";
+    sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+#ifdef DEBUG
+    printf("Start To Check Table Columns projfile\n");
+#endif
+    sctc={
+        {"project_name","TEXT",1,0},
+        {"content","NONE",0,0},
+        {"md5","TEXT",1,0}
+    };
+    check_table(3, sctc, psqlsmt);
+    sqlite3_finalize(psqlsmt);
+#ifdef DEBUG
+    printf("Succeed In Checking Table Columns\n");
+#endif
+    
+    sql_quote = "SELECT project_name FROM projfile;";
+    sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+    sqlite3_step(psqlsmt);
+    string tname = (char *)sqlite3_column_text(psqlsmt, 0);
+    if(name != tname){
+#ifdef DEBUG
+        printf("Database Conflict %s\n",tname.data());
+#endif
+        throw "database conflict";
+    }
+    sqlite3_finalize(psqlsmt);
+#ifdef DEBUG
+    printf("Succeed In Checking Project Information\n");
+#endif
+    
+}
+
+void Proj::check_table(int cnum,vector<check_table_column> sctc,sqlite3_stmt *psqlsmt){
+    sqlite3_step(psqlsmt);
+    int tcnum = sqlite3_data_count(psqlsmt);
+    if(tcnum != 6){
+#ifdef DEBUG
+        printf("[*]Column Number Is Abnormal.\n");
+#endif
+        throw "table abnormal srcfiles";
+    }
+    struct check_table_column tctc;
+    for(int i = 1; i < cnum; i++){
+        tctc.name = (char *) sqlite3_column_text(psqlsmt, 1);
+        tctc.type = (char *) sqlite3_column_text(psqlsmt, 2);
+        tctc.notnull = sqlite3_column_int(psqlsmt, 3);
+        tctc.pk = sqlite3_column_int(psqlsmt, 5);
+#ifdef DEBUG
+        printf("[*]N:(%s) T:(%s) IN:(%d) IP:(%d)\n",tctc.name.data(),tctc.type.data(),tctc.notnull,tctc.pk);
+#endif
+        if(tctc.name != sctc[i-1].name || tctc.type != sctc[i-1].type || tctc.notnull != sctc[i-1].notnull || tctc.pk != sctc[i-1].pk){
+            throw "table abnormal";
+        }
+        sqlite3_step(psqlsmt);
+    }
+}
+
+/*******************************************************************
+ *Public
+ *************/
 
 Proj::Proj(string t_projpath, string t_projfile){
 //    检查工程描述文件是否可读
@@ -740,4 +906,18 @@ void Proj::DBProcess(void){
 //获得工程名
 string Proj::GetName(void){
     return name;
+}
+
+//更新工程
+void Proj::UpdateProcess(void){
+    db_path = proj_path +"dbs/"+ name+".db";
+    if(access(db_path.data(), F_OK) == -1){
+#ifdef DEBUG
+        printf("Database Not Exist.\n");
+#endif
+        throw "database not exist";
+    }
+    sqlite3_open(db_path.data(), &psql);
+//    检查数据库的完成性
+    check_database();
 }

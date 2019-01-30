@@ -82,7 +82,12 @@ bool config_search(vector<string> &configs,string tfg){
 }
 
 int update(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets){
-    
+    try {
+        Proj nproj(targets[0], "netc.proj");
+        nproj.UpdateProcess();
+    } catch (const char *err_info) {
+        printf("\033[31mError: %s\n\033[0m",err_info);
+    }
     return 0;
 }
 
