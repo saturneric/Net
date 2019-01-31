@@ -85,7 +85,7 @@ namespace sql {
         return 0;
     }
     
-    int insert_info(sqlite3 *psql, sqlite3_stmt **psqlsmt, string table_name,vector<pair<string, string>>items){
+    int insert_info(sqlite3 *psql, sqlite3_stmt **psqlsmt, string table_name,vector<pair<string, string> >items){
         
         string sql_quote = "INSERT INTO "+table_name;
         //        处理表项名

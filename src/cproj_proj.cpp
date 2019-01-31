@@ -171,7 +171,9 @@ void Proj::build_new_db(void){
 //            cpt文件内容
             {"content","NONE"},
 //            cpt文件MD5
-            {"md5","TEXT NOT NULL"}
+            {"md5","TEXT NOT NULL"},
+//            动态链接库路径
+            {"lib_path","TEXT NOT NULL"}
         });
         
 //        记录动态链接库信息
@@ -462,15 +464,14 @@ void Proj::write_cpt_info(void){
 #endif
             throw "cpt file not exist";
         };
-        char *buff = (char *)malloc(tstat.st_size);
-        read_file(treal_path, buff, tstat.st_size);
+        string buff;
+        read_settings(treal_path, buff);
         sqlite3_bind_int(psqlsmt, 1, idx++);
         string md5;
         ComputeFile(treal_path.data(), md5);
         sqlite3_bind_text(psqlsmt, 2, cpt.data(), -1, SQLITE_TRANSIENT);
         sqlite3_bind_text(psqlsmt, 3, md5.data(), -1, SQLITE_TRANSIENT);
-        sqlite3_bind_blob(psqlsmt, 4, buff, (int)tstat.st_size, SQLITE_TRANSIENT);
-        free(buff);
+        sqlite3_bind_blob(psqlsmt, 4, buff.data(), (int)buff.size(), SQLITE_TRANSIENT);
 //            执行SQL语句
         int rtn = sqlite3_step(psqlsmt);
         if(rtn == SQLITE_OK || rtn == SQLITE_DONE){
@@ -495,7 +496,8 @@ void Proj::write_proj_info(void){
     sql::insert_info(psql, &psqlsmt, "projfile", {
         {"project_name","?1"},
         {"content","?2"},
-        {"md5","?3"}
+        {"md5","?3"},
+        {"lib_path","?4"}
     });
     if(!~stat((proj_path+"netc.proj").data(), &tstat)){
 #ifdef DEBUG
@@ -503,14 +505,12 @@ void Proj::write_proj_info(void){
 #endif
         throw "project file not exist";
     };
-    Byte *buff = (Byte *)malloc(tstat.st_size);
-    read_file(proj_path+"netc.proj", buff,tstat.st_size);
     sqlite3_bind_text(psqlsmt, 1, name.data(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_blob(psqlsmt, 2, buff, (int)tstat.st_size, SQLITE_TRANSIENT);
+    sqlite3_bind_blob(psqlsmt, 2, content.data(), (int)content.size(), SQLITE_TRANSIENT);
     string md5;
     ComputeFile(proj_path+"netc.proj", md5);
     sqlite3_bind_text(psqlsmt, 3, md5.data(), -1, SQLITE_TRANSIENT);
-    free(buff);
+    sqlite3_bind_text(psqlsmt, 4, lib_path.data(), -1, SQLITE_TRANSIENT);
 //    执行SQL语句
     int rtn = sqlite3_step(psqlsmt);
     if(rtn == SQLITE_OK || rtn == SQLITE_DONE){
@@ -636,7 +636,8 @@ void Proj::check_database(void){
     sctc={
         {"project_name","TEXT",1,0},
         {"content","NONE",0,0},
-        {"md5","TEXT",1,0}
+        {"md5","TEXT",1,0},
+        {"lib_path","TEXT",1,0}
     };
     check_table(3, sctc, psqlsmt);
     sqlite3_finalize(psqlsmt);
@@ -991,10 +992,42 @@ void Proj::UpdateProcess(void){
 //        获取原工程描述文件的内容
         sqlite3_blob *psqlblb;
         sqlite3_blob_open(psql, NULL, "projfile", "content", 1, 0, &psqlblb);
-        int size = sqlite3_blob_bytes(psqlblb);
-        char tempfile[] = "tempblob-XXXXXX";
-        int fd = mkstemp(tempfile);
+        int buff_size = sqlite3_blob_bytes(psqlblb);
+        Byte *buff = (Byte *)malloc(buff_size);
+        sqlite3_blob_read(psqlblb, buff, buff_size, 0);
         sqlite3_blob_close(psqlblb);
+        Proj tproj(buff);
+//        检查删减的源文件搜索目录
+        vector<string>delete_srcpaths;
+        for(auto tsrc : tproj.src_paths){
+            bool if_find = false;
+            for(auto src : src_paths){
+                if(src == tsrc){
+                    if_find = true;
+                    break;
+                }
+            }
+            if(if_find == false){
+                delete_srcpaths.push_back(tsrc);
+            }
+        }
+        sqlite3_stmt *psqlsmt;
+        const char *pzTail;
+        string sql_quote = "SELECT name FROM srcfiles WHERE path = ?1;";
+        sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+//        查找删减的源文件搜索目录涉及的源文件
+        for(auto dsrc : delete_srcpaths){
+            sqlite3_bind_text(psqlsmt, 1, dsrc.data(), -1, SQLITE_TRANSIENT);
+            int rtn = sqlite3_step(psqlsmt);
+            if(rtn == SQLITE_OK || rtn == SQLITE_ROW){
+                //Continue...
+            }
+            else{
+                throw "fail to select";
+            }
+            
+        }
+        free(buff);
     }
     else{
 #ifdef DEBUG
