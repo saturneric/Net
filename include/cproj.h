@@ -24,6 +24,27 @@ struct check_table_column{
     int pk;
 };
 
+struct setting_file_register{
+    vector<string> block_keys;
+};
+
+struct stn_register{
+    vector<string> stn_keys;
+};
+
+struct setting_file_read{
+    string key;
+    string name;
+    string sentence;
+    bool if_blk;
+    vector<setting_file_read *> childs;
+};
+
+struct stn_read{
+    string key;
+    string value;
+};
+
 //配置文件通用方法类
 class setting_file{
 protected:
@@ -37,6 +58,13 @@ protected:
     bool if_illegal(char c){
         if(isalnum(c) || c == '_') return true;
         else return false;
+    }
+//    检查名字是否合法
+    bool if_name_illegal(string str){
+        for(auto c:str){
+            if(!if_illegal(c)) return false;
+        }
+        return true;
     }
 //    寻找保留字
     bool search_key(ifstream &ifsfile,string key){
@@ -63,16 +91,131 @@ protected:
         return arg.substr(1,arg.size()-2);
     }
     
-    int read_file(string path, Byte *buff){
+    int read_file(string path, Byte *buff, uint64_t size){
         ifstream ifsf(path.data(),std::ios::binary);
         char tmp[512] = {0}, *idx = buff;
-        while (!ifsf.eof()) {
-            memset(tmp, 0, 512);
-            ifsf.read(tmp, 512);
-            memcpy(idx, tmp, 512);
-            idx += 512;
+        uint64_t idx_count = 0;
+        while (!ifsf.eof() && idx_count < size) {
+            if(size < 512){
+                memset(tmp, 0, size);
+                ifsf.read(tmp, size);
+                memcpy(idx, tmp, size);
+                idx_count += size;
+            }
+            else if (size > 512){
+                if(size - idx_count >= 512){
+                    memset(tmp, 0, 512);
+                    ifsf.read(tmp, 512);
+                    memcpy(idx, tmp, 512);
+                    idx_count += 512;
+                    idx += 512;
+                }
+                else{
+                    memset(tmp, 0, size-idx_count);
+                    ifsf.read(tmp, size-idx_count);
+                    memcpy(idx, tmp, size-idx_count);
+                    idx_count += size-idx_count;
+                    idx += size-idx_count;
+                }
+            }
         }
         ifsf.close();
+        return 0;
+    }
+    
+//    消去配置文件中的所有的空字符
+    void read_settings(string path, string &tstr){
+        struct stat tstat;
+        stat(path.data(), &tstat);
+        Byte *fbs = (Byte *)malloc(tstat.st_size);
+        read_file(path, fbs,tstat.st_size);
+        for(off_t i = 0; i < tstat.st_size; i++){
+            if(isgraph(fbs[i])) tstr += fbs[i];
+        }
+        free(fbs);
+    }
+//    读取关键字及代码块
+    void read_blocks(string str, setting_file_register &tsfr, vector<setting_file_read *> *blocks){
+        string tstr = str;
+        string::size_type curs_idx = 0;
+        while (tstr.size()) {
+//            寻找语句或代码块
+            string::size_type sem_idx = tstr.find(";",curs_idx);
+//            如果没找到分号则读完
+            if(sem_idx == string::npos) break;
+            string tmpstr = tstr.substr(curs_idx,sem_idx-curs_idx);
+            string::size_type blq_idx = tmpstr.find("{",curs_idx),brq_idx = string::npos;
+            bool if_blk = true;
+            string pcsstr;
+//            如果是语句
+            if(blq_idx == string::npos){
+                brq_idx = tstr.find(";",curs_idx);
+                pcsstr = tstr.substr(curs_idx,brq_idx);
+                if_blk = false;
+            }
+            else{
+                int blk_stack = 1;
+                for(auto c : tstr){
+                    pcsstr.push_back(c);
+                    if(c == '{') blk_stack++;
+                    else if(c == '}'){
+                        blk_stack--;
+                        if(blk_stack == 1) break;
+                    }
+                }
+                brq_idx = pcsstr.rfind('}') + 1;
+            }
+            
+            setting_file_read *ptsfbr = new setting_file_read();
+//            记录是语句还是信息块
+            ptsfbr->if_blk = if_blk;
+//            如果是信息块
+            if(if_blk){
+                string head = pcsstr.substr(0,blq_idx);
+                string keystr, namestr;
+                string::size_type key_idx;
+                
+//                检查关键字
+                for(auto key:tsfr.block_keys){
+                    if((key_idx = head.find(key)) != string::npos){
+                        keystr = pcsstr.substr(0,key.size());
+                        namestr = pcsstr.substr(key.size(),blq_idx-key.size());
+                        if(!if_name_illegal(namestr)){
+                            throw "block name is illegal";
+                        }
+                        ptsfbr->key = keystr;
+                        ptsfbr->name = namestr;
+                        break;
+                    }
+                }
+                if(ptsfbr->key.empty()) throw "unknown block key";
+                blocks->push_back(ptsfbr);
+                string inblkstr = pcsstr.substr(blq_idx+1,brq_idx-blq_idx-2);
+                read_blocks(inblkstr, tsfr, &blocks->back()->childs);
+            }
+            else{
+//                记录语句
+                ptsfbr->sentence = pcsstr;
+                blocks->push_back(ptsfbr);
+            }
+
+            curs_idx = brq_idx+1;
+            tstr = tstr.substr(curs_idx,tstr.size()-curs_idx);
+            curs_idx = 0;
+        }
+    }
+    int read_stn(string stn_str, stn_register &tsr,stn_read *stn){
+        string::size_type key_idx = string::npos;
+        stn->key.clear();
+        stn->value.clear();
+        for(auto key:tsr.stn_keys){
+            if((key_idx = stn_str.find(key)) != string::npos){
+                stn->key = key;
+                stn->value = stn_str.substr(key.size(),stn_str.size()-key.size());
+                break;
+            }
+        }
+        if(stn->key.empty()) return -1;
         return 0;
     }
 };
@@ -102,9 +245,17 @@ class Cpt:public setting_file{
     vector<cpt_func_args> deal_args(string args);
 //    处理参数
     cpt_func_args deal_arg(string arg);
+//    配置文件文件解析结构
+    vector<setting_file_read *> blocks;
+//    文件数据
+    string content;
+//    处理文件数据
+    void deal_content(string data_content);
 public:
 //    构造函数
     Cpt(string path, string proj_name);
+//    数据库数据直接构造函数
+    Cpt(string data_content, int if_db, string proj_name);
 };
 
 //map文件管理类
@@ -123,6 +274,8 @@ class Proj:public setting_file{
     string name;
 //    计算工程读入流
     ifstream ifsproj;
+//    工程文件内容
+    string content;
 //    源文件所在的目录
     vector<string> src_paths;
 //    源文件搜索目录下的所有源文件
@@ -149,6 +302,8 @@ class Proj:public setting_file{
     sqlite3 *psql;
 //    数据库文件路径
     string db_path;
+//    配置文件文件解析结构
+    vector<setting_file_read *> blocks;
 
 //    处理描述文件的命令
     void deal_order(string tag, string arg);
@@ -182,9 +337,13 @@ class Proj:public setting_file{
     void check_database(void);
 //    检查数据库表
     void check_table(int cnum, vector<check_table_column> tctc,sqlite3_stmt *psqlsmt);
+//    解析数据
+    void deal_content(string data_content);
 public:
 //    读取Proj文件
     Proj(string t_projpath, string t_projfile);
+//    接受数据库数据
+    Proj(string data_content);
 //    检查目录以及描述文件是否存在
     void GeneralCheckInfo(void);
 //   搜寻源文件搜索目录并读取Cpt文件
@@ -203,6 +362,8 @@ public:
     string GetName(void);
 //    更新工程
     void UpdateProcess(void);
+//    获得数据库
+    void AttachDatabases(void);
 };
 
 #endif /* cproj_h */

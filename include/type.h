@@ -47,6 +47,7 @@ using std::list;
 using std::ifstream;
 using std::cout;
 using std::endl;
+using std::stringstream;
 
 typedef char Byte;
 

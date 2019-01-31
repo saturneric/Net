@@ -463,7 +463,7 @@ void Proj::write_cpt_info(void){
             throw "cpt file not exist";
         };
         char *buff = (char *)malloc(tstat.st_size);
-        read_file(treal_path, buff);
+        read_file(treal_path, buff, tstat.st_size);
         sqlite3_bind_int(psqlsmt, 1, idx++);
         string md5;
         ComputeFile(treal_path.data(), md5);
@@ -504,7 +504,7 @@ void Proj::write_proj_info(void){
         throw "project file not exist";
     };
     Byte *buff = (Byte *)malloc(tstat.st_size);
-    read_file(proj_path+"netc.proj", buff);
+    read_file(proj_path+"netc.proj", buff,tstat.st_size);
     sqlite3_bind_text(psqlsmt, 1, name.data(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_blob(psqlsmt, 2, buff, (int)tstat.st_size, SQLITE_TRANSIENT);
     string md5;
@@ -700,60 +700,123 @@ Proj::Proj(string t_projpath, string t_projfile){
     
     
     proj_file = t_projfile;
-    ifsproj.open(proj_path+proj_file);
-    if(ifsproj.good()){
-        string line;
-//        寻找保留字
-        if(!search_key(ifsproj,"proj")) throw "project struct not found";
-//        读取下一段信息
-        ifsproj>>line;
-//        大括号位置
-        string::size_type qb_idx = line.find("{");
-//        寻找任务工程名
-        string t_name;
-        if(qb_idx == string::npos) t_name = line;
-        else t_name = line.substr(0,qb_idx);
-//        检查工程名是否含有非法字符
-        for(auto c:t_name){
-            if(if_illegal(c));
-            else throw "project's name has illegal char";
-        }
-        name = t_name;
-//        寻找左大括号
-        if(qb_idx == string::npos){
-            ifsproj>>line;
-            if((qb_idx = line.find("{")) == string::npos) throw "syntax error";
-        }
-//        逐行分析语句
-        string tag,cma,arg;
-        bool if_ctn = false;
-        do{
-//            读取命令标签
-            ifsproj>>tag;
-//            读取冒号
-            ifsproj>>cma;
-//            读取命令变量
-            ifsproj>>arg;
-//            检查参数是否含有非法字符
-            for(auto c:t_name){
-                if(if_illegal(c));
-                else throw " arg has illegal char";
-            }
-            if(cma != ":") throw "syntax error";
-            if((if_ctn = if_continue(arg)) == true){
-//                消掉逗号
-                arg = arg.substr(0,arg.size()-1);
-            }
-            if(if_string(arg)){
-                deal_order(tag, cut_string(arg));
-            }
-            else throw "syntax error";
-        }while(if_ctn);
-        ifsproj>>line;
-        if(line != "};") throw "syntax error";
-    }
-    else throw "fail to open project file";
+    
+    string tifsproj;
+    read_settings(proj_path+proj_file, tifsproj);
+//    处理文件数据
+    deal_content(tifsproj);
+}
 
+Proj::Proj(string data_content){
+    deal_content(data_content);
+}
+
+//处理文件数据
+void Proj::deal_content(string data_content){
+    setting_file_register tsfr = {
+        {
+            "proj",
+            "cpt",
+            "map",
+            "src_dir",
+            "lib_dir"
+        }
+    };
+    stn_register tsr = stn_register{
+        {
+            "path",
+            "name",
+        }
+    };
+    //    解析配置文件
+    read_blocks(data_content, tsfr, &blocks);
+    content = data_content;
+    stn_read tsread;
+    //    获得解析后的信息
+    if (blocks[0]->key == "proj" && blocks[0]->if_blk) {
+        name = blocks[0]->name;
+        if(name.empty()) throw "a project must have a name";
+        for(auto block : blocks[0]->childs){
+            //            读取cpt描述
+            if(block->key == "cpt"){
+                string ncptp,tpath,tname;
+                for(auto stn : block->childs){
+                    if(!stn->if_blk){
+                        if(!~read_stn(stn->sentence, tsr, &tsread))
+                            throw "sentence illegal";
+                        
+                        if(tsread.key == "path"){
+                            if(tpath.empty()){
+                                tpath = tsread.value;
+                            }
+                            else throw "only can a 'cpt' block have one 'path' tag";
+                        }
+                        else if (tsread.key == "name"){
+                            tname = tsread.value + ".cpt";
+                            ncptp = tpath+"/"+tname;
+                            cpt_paths.push_back(ncptp);
+                        }
+                    }
+                }
+                
+            }
+            else if (block->key == "map"){
+                string nmapp,tpath,tname;
+                for(auto stn : block->childs){
+                    if(!stn->if_blk){
+                        if(!~read_stn(stn->sentence, tsr, &tsread))
+                            throw "sentence illegal";
+                        
+                        if(tsread.key == "path"){
+                            if(tpath.empty()){
+                                tpath = tsread.value;
+                            }
+                            else throw "only can a 'map' block have one 'path' tag";
+                        }
+                        else if (tsread.key == "name"){
+                            tname = tsread.value + ".map";
+                            nmapp = tpath + "/" + tname;
+                            map_paths.push_back(nmapp);
+                        }
+                    }
+                }
+                
+            }
+            else if (block->key == "src_dir"){
+                string tpath;
+                for(auto stn : block->childs){
+                    if(!stn->if_blk){
+                        if(!~read_stn(stn->sentence, tsr, &tsread))
+                            throw "sentence illegal";
+                        if(tsread.key == "path"){
+                            tpath = tsread.value;
+                            src_paths.push_back(tpath);
+                        }
+                    }
+                }
+            }
+            else if (block->key == "lib_dir"){
+                if(!lib_path.empty()) throw "only can a 'proj' block have one 'lib_dir' block";
+                string tpath;
+                for(auto stn : block->childs){
+                    if(!stn->if_blk){
+                        if(!~read_stn(stn->sentence, tsr, &tsread))
+                            throw "sentence illegal";
+                        if(tsread.key == "path"){
+                            if(tpath.empty()){
+                                tpath = tsread.value;
+                                lib_path = tpath;
+                            }
+                            else{
+                                throw "only can a 'lib_dir' block have one 'path' tag";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    else throw "project file illegal";
 }
 
 //检查目录以及描述文件是否存在
@@ -908,8 +971,42 @@ string Proj::GetName(void){
     return name;
 }
 
+
 //更新工程
 void Proj::UpdateProcess(void){
+    AttachDatabases();
+//    检查工程描述文件的MD5
+    string md5;
+    ComputeFile(proj_path+"netc.proj", md5);
+    sqlite3_stmt *psqlsmt;
+    const char *pzTail;
+    sqlite3_prepare(psql, "SELECT md5 FROM projfile;", -1, &psqlsmt, &pzTail);
+    sqlite3_step(psqlsmt);
+    string tmd5 = (char *) sqlite3_column_text(psqlsmt, 0);
+    sqlite3_finalize(psqlsmt);
+    if(tmd5 != md5){
+#ifdef DEBUG
+        printf("Curent Project File's MD5 Is Not Matched.\n");
+#endif
+//        获取原工程描述文件的内容
+        sqlite3_blob *psqlblb;
+        sqlite3_blob_open(psql, NULL, "projfile", "content", 1, 0, &psqlblb);
+        int size = sqlite3_blob_bytes(psqlblb);
+        char tempfile[] = "tempblob-XXXXXX";
+        int fd = mkstemp(tempfile);
+        sqlite3_blob_close(psqlblb);
+    }
+    else{
+#ifdef DEBUG
+        printf("Curent Project File's MD5 Is Matched.\n");
+#endif
+    }
+    
+}
+
+//获得数据库
+void Proj::AttachDatabases(void){
+//    合成数据库路径
     db_path = proj_path +"dbs/"+ name+".db";
     if(access(db_path.data(), F_OK) == -1){
 #ifdef DEBUG
@@ -918,6 +1015,7 @@ void Proj::UpdateProcess(void){
         throw "database not exist";
     }
     sqlite3_open(db_path.data(), &psql);
-//    检查数据库的完成性
+//    检查数据库的完整性
     check_database();
 }
+
