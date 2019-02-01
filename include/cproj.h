@@ -328,8 +328,10 @@ class Proj:public setting_file{
     void write_lib_info(void);
 //    写入入口函数信息到数据库中
     void write_func_info(void);
+    void write_func_info(string func_name, Cpt *pcpt);
 //    写入口函数入输入输出参数信息到数据库中
     void write_args_info(void);
+    void write_args_info(string func_name, Cpt *pcpt);
 //    写入cpt文件信息到数据库中
     void write_cpt_info(void);
 //    写入工程描述文件信息到数据库中
@@ -340,6 +342,8 @@ class Proj:public setting_file{
     void check_table(int cnum, vector<check_table_column> tctc,sqlite3_stmt *psqlsmt);
 //    解析数据
     void deal_content(string data_content);
+//    编译源文件
+    void compile_srcfile(string src_name, string src_path);
 public:
 //    读取Proj文件
     Proj(string t_projpath, string t_projfile);

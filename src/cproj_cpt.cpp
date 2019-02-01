@@ -161,6 +161,7 @@ cpt_func_args Cpt::deal_arg(string arg){
         read_stn(arg, tsr, &nstnr);
         ncfa.type = nstnr.key;
         ncfa.key = nstnr.value;
+        ncfa.size = 1;
     }
     else throw "syntax error";
     
