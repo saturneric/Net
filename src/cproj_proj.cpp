@@ -1265,17 +1265,32 @@ void Proj::UpdateProcess(void){
     sqlite3_finalize(psqlsmt);
     sqlite3_finalize(psqlsmt2);
     
+    
     sql_quote = "SELECT count(*) FROM functions WHERE name = ?1;";
     sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
     for(auto func : func_index){
         sqlite3_bind_text(psqlsmt, 1, func.first.data(), -1, SQLITE_TRANSIENT);
         int rtn = sqlite3_step(psqlsmt);
+        
         if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
             int if_find = sqlite3_column_int(psqlsmt, 0);
             if(!if_find){
                 write_func_info(func.first, func.second);
-                //write_args_info(func.first, func.second);
+                write_args_info(func.first, func.second);
+                /*sql_quote2 = "CREATE TABLE "+func.first+" (id INT  PRIMARY KEY  NOT NULL,type TEXT  NOT NULL,idx INT  NOT NULL,io INT  NOT NULL,key TEXT,size INT  NOT NULL);";
+                sqlite3_prepare(psql, sql_quote2.data(), -1, &psqlsmt2, &pzTail);
+                sqlite3_step(psqlsmt2);
+                sqlite3_finalize(psqlsmt2);*/
+                sqlite3_finalize(psqlsmt);
+                sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+                
             }
+        }
+        else{
+            const char *error = sqlite3_errmsg(psql);
+            int errorcode =  sqlite3_extended_errcode(psql);
+            printf("Error: [%d]%s\n",errorcode,error);
+            
         }
         sqlite3_reset(psqlsmt);
         sqlite3_clear_bindings(psqlsmt);

@@ -127,7 +127,7 @@ protected:
     void read_settings(string path, string &tstr){
         struct stat tstat;
         stat(path.data(), &tstat);
-        Byte *fbs = (Byte *)malloc(tstat.st_size);
+        Byte *fbs = (Byte *)malloc(tstat.st_size+5);
         read_file(path, fbs,tstat.st_size);
         for(off_t i = 0; i < tstat.st_size; i++){
             if(isgraph(fbs[i])) tstr += fbs[i];
