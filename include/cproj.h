@@ -332,6 +332,7 @@ class Proj:public setting_file{
 //    写入口函数入输入输出参数信息到数据库中
     void write_args_info(void);
     void write_args_info(string func_name, Cpt *pcpt);
+    void write_args_info_no_create_table(string func_name, Cpt *pcpt);
 //    写入cpt文件信息到数据库中
     void write_cpt_info(void);
 //    写入工程描述文件信息到数据库中

@@ -439,103 +439,13 @@ void Proj::write_args_info(void){
     printf("Start to Write Function Parameter Information Into Database.\n");
 #endif
     for(auto func : func_index){
-        vector<cpt_func_args> *pfin = &func.second->fargs_in.find(func.first)->second;
-        vector<cpt_func_args> *pfout = &func.second->fargs_out.find(func.first)->second;
-//        创建对应的储存表
-        sql::table_create(psql, func.first, {
-//            ID
-            {"id","INT  PRIMARY KEY  NOT NULL"},
-//            数据类型
-            {"type","TEXT  NOT NULL"},
-//            顺序序号
-            {"idx","INT  NOT NULL"},
-//            输入或输出标识(0输入，1输出)
-            {"io","INT  NOT NULL"},
-//            标签名
-            {"key","TEXT"},
-//            数据单元个数
-            {"size","INT  NOT NULL"}
-        });
-        
-        sqlite3_stmt *psqlsmt;
-        
-//        生成并编译SQL语句
-        sql::insert_info(psql, &psqlsmt, func.first, {
-            {"id","?6"},
-            {"type","?1"},
-            {"idx","?2"},
-            {"io","?3"},
-            {"key","?4"},
-            {"size","?5"}
-        });
-        
-        int idx = 0, sidx = 0;
-#ifdef DEBUG
-        printf("Writing Function Parameter (IN) Information Into Database (%s)\n",func.first.data());
-#endif
-//        写入输入参数
-        for(auto arg : *pfin){
-//            连接数据
-            sqlite3_bind_text(psqlsmt, 1, arg.type.data(), -1, SQLITE_TRANSIENT);
-            sqlite3_bind_int(psqlsmt, 2, idx++);
-            sqlite3_bind_int(psqlsmt, 3, 0);
-            sqlite3_bind_text(psqlsmt,4, arg.key.data(), -1, SQLITE_TRANSIENT);
-            sqlite3_bind_int(psqlsmt, 5, arg.size);
-            sqlite3_bind_int(psqlsmt, 6, sidx++);
-//            执行SQL语句
-            int rtn = sqlite3_step(psqlsmt);
-            if(rtn == SQLITE_OK || rtn == SQLITE_DONE){
-#ifdef DEBUG
-                printf("[*]Succeed In Writing Function Parameter Information %s\n",func.first.data());
-#endif
-            }
-            else{
-#ifdef DEBUG
-                printf("[*]Failed to Write Function Parameter Information %s\n",func.first.data());
-#endif
-            }
-            sqlite3_reset(psqlsmt);
-            sqlite3_clear_bindings(psqlsmt);
-        }
-        
-#ifdef DEBUG
-        printf("Writing Function Parameter (OUT) Information Into Database (%s)\n",func.first.data());
-#endif
-        idx = 0;
-//        写入输入参数
-        for(auto arg : *pfout){
-//            连接数据
-            sqlite3_bind_text(psqlsmt, 1, arg.type.data(), -1, SQLITE_TRANSIENT);
-            sqlite3_bind_int(psqlsmt, 2, idx++);
-            sqlite3_bind_int(psqlsmt, 3, 1);
-            sqlite3_bind_text(psqlsmt,4, arg.key.data(), -1, SQLITE_TRANSIENT);
-            sqlite3_bind_int(psqlsmt, 5, arg.size);
-            sqlite3_bind_int(psqlsmt, 6, sidx++);
-            
-//            执行SQL语句
-            int rtn = sqlite3_step(psqlsmt);
-            if(rtn == SQLITE_OK || rtn == SQLITE_DONE){
-#ifdef DEBUG
-                printf("[*]Succeed In Writing Function Parameter Information %s\n",func.first.data());
-#endif
-            }
-            else{
-#ifdef DEBUG
-                printf("[*]Failed to Write Function Parameter Information %s\n",func.first.data());
-#endif
-            }
-            sqlite3_reset(psqlsmt);
-            sqlite3_clear_bindings(psqlsmt);
-        }
-        sqlite3_finalize(psqlsmt);
+        write_args_info(func.first, func.second);
     }
 }
 
 void Proj::write_args_info(string func_name, Cpt *pcpt){
-    vector<cpt_func_args> *pfin = &pcpt->fargs_in.find(func_name)->second;
-    vector<cpt_func_args> *pfout = &pcpt->fargs_out.find(func_name)->second;
     //        创建对应的储存表
-    sql::table_create(psql, func_name, {
+    sql::table_create(psql, "fargs_"+func_name, {
         //            ID
         {"id","INT  PRIMARY KEY  NOT NULL"},
         //            数据类型
@@ -549,11 +459,16 @@ void Proj::write_args_info(string func_name, Cpt *pcpt){
         //            数据单元个数
         {"size","INT  NOT NULL"}
     });
-    
+    write_args_info_no_create_table(func_name, pcpt);
+}
+
+void Proj::write_args_info_no_create_table(string func_name, Cpt *pcpt){
+    vector<cpt_func_args> *pfin = &pcpt->fargs_in.find(func_name)->second;
+    vector<cpt_func_args> *pfout = &pcpt->fargs_out.find(func_name)->second;
     sqlite3_stmt *psqlsmt;
     
     //        生成并编译SQL语句
-    sql::insert_info(psql, &psqlsmt, func_name, {
+    sql::insert_info(psql, &psqlsmt, "fargs_"+func_name, {
         {"id","?6"},
         {"type","?1"},
         {"idx","?2"},
@@ -870,7 +785,7 @@ void Proj::compile_srcfile(string src_name, string src_path){
     string t_path = proj_path+tsrc_path+"/"+src_name;
     string tlib_path = proj_path+lib_path;
 #ifdef DEBUG
-    printf("Compling Used Source File %s\n[*]Libname %s\n[*]Source File Path %s\n[*]Lib Path %s\n",src_name.data(),tlib_name.data(),t_path.data(),tlib_path.data());
+    printf("\033[33mCompling Source File %s\n\033[0m[*]Libname %s\n[*]Source File Path %s\n[*]Lib Path %s\n",src_name.data(),tlib_name.data(),t_path.data(),tlib_path.data());
 #endif
     build_src(tlib_name,t_path,tlib_path);
     lib_index.insert({src_name,tlib_name});
@@ -1042,7 +957,7 @@ void Proj::BuildFuncIndex(void){
 //            对应的计算模块入口函数
             func_index.insert({func.first,pcpt});
 #ifdef DEBUG
-            printf("Building Func Index %s (%p).\n",func.first.data(),pcpt);
+            printf("\033[33mBuilding Func Index %s (%p).\n\033[0m",func.first.data(),pcpt);
 #endif
         }
     }
@@ -1056,7 +971,7 @@ void Proj::CompileUsedSrcFiles(void){
         string t_path = proj_path+tsrc_path+"/"+src.first;
         string tlib_path = proj_path+lib_path;
 #ifdef DEBUG
-        printf("Compling Used Source File %s\n[*]Libname %s\n[*]Source File Path %s\n[*]Lib Path %s\n",src.first.data(),tlib_name.data(),t_path.data(),tlib_path.data());
+        printf("\033[33mCompling Used Source File %s\n\033[0m[*]Libname %s\n[*]Source File Path %s\n[*]Lib Path %s\n",src.first.data(),tlib_name.data(),t_path.data(),tlib_path.data());
 #endif
         build_src(tlib_name,t_path,tlib_path);
         lib_index.insert({src.first,tlib_name});
@@ -1183,7 +1098,15 @@ void Proj::UpdateProcess(void){
     string sql_quote2 = "SELECT * FROM srcfiles ORDER BY id DESC limit 0,1;";
     sqlite3_stmt *psqlsmt2;
     sqlite3_prepare(psql, sql_quote2.data(), -1, &psqlsmt2, &pzTail);
-    sqlite3_step(psqlsmt2);
+    int rtn = sqlite3_step(psqlsmt2);
+    if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
+        
+    }
+    else{
+        const char *error = sqlite3_errmsg(psql);
+        int errorcode =  sqlite3_extended_errcode(psql);
+        printf("\033[31mSQL Error: [%d]%s\n\033[0m",errorcode,error);
+    }
     int last_id = sqlite3_column_int(psqlsmt2, 0);
     sqlite3_finalize(psqlsmt2);
     sql::insert_info(psql, &psqlsmt2, "srcfiles", {
@@ -1194,7 +1117,15 @@ void Proj::UpdateProcess(void){
     });
     for(auto usrc : used_srcfiles){
         sqlite3_bind_text(psqlsmt, 1, usrc.first.data(), -1, SQLITE_TRANSIENT);
-        sqlite3_step(psqlsmt);
+        int rtn = sqlite3_step(psqlsmt);
+        if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
+            
+        }
+        else{
+            const char *error = sqlite3_errmsg(psql);
+            int errorcode =  sqlite3_extended_errcode(psql);
+            printf("\033[31mSQL Error: [%d]%s\n\033[0m",errorcode,error);
+        }
         int if_find = sqlite3_column_int(psqlsmt, 0);
         if(!if_find){
             compile_srcfile(usrc.first, src_paths[usrc.second]);
@@ -1205,7 +1136,15 @@ void Proj::UpdateProcess(void){
             ComputeFile((proj_path+src_paths[usrc.second]+"/"+usrc.first).data(), md5);
             sqlite3_bind_text(psqlsmt2, 4, md5.data(), -1, SQLITE_TRANSIENT);
 //            添加入口函数
-            sqlite3_step(psqlsmt2);
+            int rtn = sqlite3_step(psqlsmt2);
+            if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
+                
+            }
+            else{
+                const char *error = sqlite3_errmsg(psql);
+                int errorcode =  sqlite3_extended_errcode(psql);
+                printf("\033[31mSQL Error: [%d]%s\n\033[0m",errorcode,error);
+            }
             sqlite3_reset(psqlsmt2);
             sqlite3_clear_bindings(psqlsmt2);
         }
@@ -1217,7 +1156,15 @@ void Proj::UpdateProcess(void){
     
     sql_quote2 = "SELECT * FROM libfiles ORDER BY id DESC limit 0,1;";
     sqlite3_prepare(psql, sql_quote2.data(), -1, &psqlsmt2, &pzTail);
-    sqlite3_step(psqlsmt2);
+    rtn = sqlite3_step(psqlsmt2);
+    if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
+        
+    }
+    else{
+        const char *error = sqlite3_errmsg(psql);
+        int errorcode =  sqlite3_extended_errcode(psql);
+        printf("\033[31mSQL Error: [%d]%s\n\033[0m",errorcode,error);
+    }
     last_id = sqlite3_column_int(psqlsmt2, 0);
     sqlite3_finalize(psqlsmt2);
     sql::insert_info(psql, &psqlsmt2, "libfiles", {
@@ -1229,7 +1176,15 @@ void Proj::UpdateProcess(void){
         sqlite3_bind_int(psqlsmt2, 1, ++last_id);
         sqlite3_bind_text(psqlsmt2, 2, lib.second.data(), -1, SQLITE_TRANSIENT);
 //        添加动态链接库
-        sqlite3_step(psqlsmt2);
+        int rtn = sqlite3_step(psqlsmt2);
+        if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
+            
+        }
+        else{
+            const char *error = sqlite3_errmsg(psql);
+            int errorcode =  sqlite3_extended_errcode(psql);
+            printf("\033[31mSQL Error: [%d]%s\n\033[0m",errorcode,error);
+        }
         sqlite3_reset(psqlsmt2);
         sqlite3_clear_bindings(psqlsmt2);
     }
@@ -1244,7 +1199,15 @@ void Proj::UpdateProcess(void){
     
     for(auto usrc : used_srcfiles){
         sqlite3_bind_text(psqlsmt, 1, usrc.first.data(), -1, SQLITE_TRANSIENT);
-        sqlite3_step(psqlsmt);
+        int rtn = sqlite3_step(psqlsmt);
+        if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
+            
+        }
+        else{
+            const char *error = sqlite3_errmsg(psql);
+            int errorcode =  sqlite3_extended_errcode(psql);
+            printf("Error: [%d]%s\n",errorcode,error);
+        }
         string dmd5 = (char *)sqlite3_column_text(psqlsmt, 0);
         string tmd5;
         string tsrc_file = proj_path+src_paths[usrc.second]+"/"+usrc.first;
@@ -1255,7 +1218,17 @@ void Proj::UpdateProcess(void){
             sqlite3_bind_text(psqlsmt2, 1, tmd5.data(), -1, SQLITE_TRANSIENT);
             sqlite3_bind_text(psqlsmt2, 2, usrc.first.data(), -1, SQLITE_TRANSIENT);
             
-            sqlite3_step(psqlsmt2);
+            int rtn = sqlite3_step(psqlsmt2);
+            if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
+                
+            }
+            else{
+                const char *error = sqlite3_errmsg(psql);
+                int errorcode =  sqlite3_extended_errcode(psql);
+                printf("\033[31mSQL Error: [%d]%s\n\033[0m",errorcode,error);
+            }
+            
+            
             sqlite3_reset(psqlsmt2);
             sqlite3_clear_bindings(psqlsmt2);
         }
@@ -1277,10 +1250,6 @@ void Proj::UpdateProcess(void){
             if(!if_find){
                 write_func_info(func.first, func.second);
                 write_args_info(func.first, func.second);
-                /*sql_quote2 = "CREATE TABLE "+func.first+" (id INT  PRIMARY KEY  NOT NULL,type TEXT  NOT NULL,idx INT  NOT NULL,io INT  NOT NULL,key TEXT,size INT  NOT NULL);";
-                sqlite3_prepare(psql, sql_quote2.data(), -1, &psqlsmt2, &pzTail);
-                sqlite3_step(psqlsmt2);
-                sqlite3_finalize(psqlsmt2);*/
                 sqlite3_finalize(psqlsmt);
                 sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
                 
@@ -1289,7 +1258,7 @@ void Proj::UpdateProcess(void){
         else{
             const char *error = sqlite3_errmsg(psql);
             int errorcode =  sqlite3_extended_errcode(psql);
-            printf("Error: [%d]%s\n",errorcode,error);
+            printf("\033[31mSQL Error: [%d]%s\n\033[0m",errorcode,error);
             
         }
         sqlite3_reset(psqlsmt);
@@ -1297,15 +1266,104 @@ void Proj::UpdateProcess(void){
     }
     sqlite3_finalize(psqlsmt);
     
+//    检查更新参数列表
+    for(auto func : func_index){
+        sql_quote = "SELECT * FROM fargs_" + func.first+";";
+        sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+        int rtn = sqlite3_step(psqlsmt);
+        if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
+            
+        }
+        else{
+            const char *error = sqlite3_errmsg(psql);
+            int errorcode =  sqlite3_extended_errcode(psql);
+            printf("\033[31mSQL Error: [%d]%s\n\033[0m",errorcode,error);
+        }
+        
+        bool if_changed = false;
+        string type,key;
+        int size,io,tidx;
+        int idx = 0;
+        for(auto farg_in : func.second->fargs_in.find(func.first)->second){
+            type = (char *)sqlite3_column_text(psqlsmt, 1);
+            key = (char *)sqlite3_column_text(psqlsmt, 4);
+            size = sqlite3_column_int(psqlsmt, 5);
+            io = sqlite3_column_int(psqlsmt, 3);
+            tidx = sqlite3_column_int(psqlsmt, 2);
+            if(tidx == idx && io == 0){
+                if(type == farg_in.type && key == farg_in.key && size == farg_in.size);
+                else{
+                    if_changed = true;
+                    break;
+                }
+            }
+            else{
+                if_changed = true;
+                break;
+            }
+            idx++;
+            sqlite3_step(psqlsmt);
+        }
+        idx = 0;
+        for(auto farg_out : func.second->fargs_out.find(func.first)->second){
+            type = (char *)sqlite3_column_text(psqlsmt, 1);
+            key = (char *)sqlite3_column_text(psqlsmt, 4);
+            size = sqlite3_column_int(psqlsmt, 5);
+            io = sqlite3_column_int(psqlsmt, 3);
+            tidx = sqlite3_column_int(psqlsmt, 2);
+            if(tidx == idx && io == 1){
+                if(type == farg_out.type && key == farg_out.key && size == farg_out.size);
+                else{
+                    if_changed = true;
+                    break;
+                }
+            }
+            else{
+                if_changed = true;
+                break;
+            }
+            idx++;
+            sqlite3_step(psqlsmt);
+        }
+        sqlite3_finalize(psqlsmt);
+        if(if_changed){
+#ifdef DEBUG
+                printf("\033[33mFunction Args Changed %s\n\033[0m",func.first.data());
+#endif
+                sql_quote2 = "DELETE FROM fargs_"+func.first+";";
+                sqlite3_prepare(psql, sql_quote2.data(), -1, &psqlsmt2, &pzTail);
+                sqlite3_step(psqlsmt2);
+                sqlite3_finalize(psqlsmt2);
+                write_args_info_no_create_table(func.first,func.second);
+            }
+        
+    }
+    
     sql_quote = "DELETE FROM cptfiles";
     sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
-    sqlite3_step(psqlsmt);
+    rtn = sqlite3_step(psqlsmt);
+    if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
+        
+    }
+    else{
+        const char *error = sqlite3_errmsg(psql);
+        int errorcode =  sqlite3_extended_errcode(psql);
+        printf("\033[31mSQL Error: [%d]%s\n\033[0m",errorcode,error);
+    }
     sqlite3_finalize(psqlsmt);
     write_cpt_info();
     
     sql_quote = "DELETE FROM projfile";
     sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
-    sqlite3_step(psqlsmt);
+    rtn = sqlite3_step(psqlsmt);
+    if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
+        
+    }
+    else{
+        const char *error = sqlite3_errmsg(psql);
+        int errorcode =  sqlite3_extended_errcode(psql);
+        printf("\033[31mSQL Error: [%d]%s\n\033[0m",errorcode,error);
+    }
     sqlite3_finalize(psqlsmt);
     write_proj_info();
     
