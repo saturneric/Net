@@ -21,11 +21,16 @@
 //计算模块入口函数类型
 typedef int(*PCSFUNC)(void);
 
+struct farg_info {
+    string type;
+    int size = 1;
+};
+
 //计算模块类
 class CPart{
 public:
 //    参数格式信息列表
-    vector<int> fargs_in, fargs_out;
+    vector<farg_info> fargs_in, fargs_out;
 //    输入参数与输出参数缓冲区
     vector<void *> args_in, args_out;
 //    计算过程入口与出口管理类
@@ -45,12 +50,14 @@ public:
 //    源文件名
     string src_name;
     
-//    唯一的构造函数
+//    构造函数
     CPart(string src_path,string lib_path,string src_name,string name,bool ffresh = true);
+//    根据数据库信息构造
+    CPart(string func_name, sqlite3 *psql);
 //    析构函数
     ~CPart();
 //    设置输入输出参数格式信息列表
-    void setArgsType(vector<int> fargs_in, vector<int> fargs_out);
+    void setArgsType(vector<farg_info> fargs_in, vector<farg_info> fargs_out);
 //    编译源文件
     int BuildSo(void);
 //    获得动态链接库操作柄

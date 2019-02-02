@@ -1173,10 +1173,26 @@ void Proj::UpdateProcess(void){
         {"content","?3"}
     });
     for(auto lib : lib_index){
+        sql_quote = "SELECT count(*) FROM libfiles WHERE name = ?1";
+        sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+        sqlite3_bind_text(psqlsmt, 1, lib.second.data(), -1, SQLITE_TRANSIENT);
+        int rtn = sqlite3_step(psqlsmt);
+        if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
+            int if_find = sqlite3_column_int(psqlsmt, 0);
+            sqlite3_finalize(psqlsmt);
+            if(if_find) continue;
+        }
+        else{
+            const char *error = sqlite3_errmsg(psql);
+            int errorcode =  sqlite3_extended_errcode(psql);
+            printf("\033[31mSQL Error: [%d]%s\n\033[0m",errorcode,error);
+            throw error;
+        }
+        
         sqlite3_bind_int(psqlsmt2, 1, ++last_id);
         sqlite3_bind_text(psqlsmt2, 2, lib.second.data(), -1, SQLITE_TRANSIENT);
 //        添加动态链接库
-        int rtn = sqlite3_step(psqlsmt2);
+        rtn = sqlite3_step(psqlsmt2);
         if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
             
         }

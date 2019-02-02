@@ -87,6 +87,7 @@ int update(string instruct, vector<string> &configs, vector<string> &lconfigs, v
         nproj.UpdateProcess();
     } catch (const char *err_info) {
         printf("\033[31mError: %s\n\033[0m",err_info);
+        return -1;
     }
     printf("\033[32mSucceed.\n\033[0m");
     return 0;

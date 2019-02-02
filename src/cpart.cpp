@@ -74,6 +74,51 @@ CPart::CPart(string t_srcpath,string t_libpath,string t_srcname,string t_name,bo
 
 }
 
+CPart::CPart(string func_name, sqlite3 *psql){
+//    获得动态链接库名
+    string sql_quote = "SELECT libfiles.name FROM functions INNER JOIN libfiles ON libfiles.id = functions.libfile_id WHERE functions.name = ?1;";
+    sqlite3_stmt *psqlsmt;
+    const char *pzTail;
+    sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+    sqlite3_bind_text(psqlsmt, 1, func_name.data(), -1, SQLITE_TRANSIENT);
+    sqlite3_step(psqlsmt);
+    lib_name = (char *)sqlite3_column_text(psqlsmt, 0);
+    sqlite3_finalize(psqlsmt);
+//    获得工程信息
+    sql_quote = "SELECT * FROM projfile;";
+    sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+    sqlite3_step(psqlsmt);
+    lib_path = (char *)sqlite3_column_text(psqlsmt, 3);
+    name = (char *)sqlite3_column_text(psqlsmt, 0);
+    sqlite3_finalize(psqlsmt);
+//    获得相关操作柄
+    GetSoHandle();
+//    记录形式参数
+    sql_quote = "SELECT * FROM fargs_"+func_name+" WHERE io = ?1;";
+    sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+    sqlite3_bind_int(psqlsmt, 1, 0);
+    int rtn = sqlite3_step(psqlsmt);
+    if(rtn != SQLITE_DONE)
+        do{
+            farg_info nfi;
+            nfi.type =(char *) sqlite3_column_text(psqlsmt, 1);
+            nfi.size =sqlite3_column_int(psqlsmt, 5);
+            fargs_in.push_back(nfi);
+            
+        }while (sqlite3_step(psqlsmt) != SQLITE_DONE);
+    sqlite3_reset(psqlsmt);
+    sqlite3_clear_bindings(psqlsmt);
+    sqlite3_bind_int(psqlsmt, 1, 1);
+    if(rtn != SQLITE_DONE)
+        do{
+            farg_info nfi;
+            nfi.type =(char *) sqlite3_column_text(psqlsmt, 1);
+            nfi.size =sqlite3_column_int(psqlsmt, 5);
+            fargs_out.push_back(nfi);
+        }while (sqlite3_step(psqlsmt) != SQLITE_DONE);
+    sqlite3_finalize(psqlsmt);
+}
+
 
 /**
  执行源文件编译操作，在指定位置生成动态链接库
@@ -125,7 +170,7 @@ CPart::~CPart(){
  @param fargs_in 输入参数格式
  @param fargs_out 输出参数格式
  */
-void CPart::setArgsType(vector<int> fargs_in, vector<int> fargs_out){
+void CPart::setArgsType(vector<farg_info> fargs_in, vector<farg_info> fargs_out){
     this->fargs_in = fargs_in;
     this->fargs_out = fargs_out;
 }
