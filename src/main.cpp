@@ -17,11 +17,12 @@
 
 int update(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets);
 int construct(string instruct,vector<string> &config, vector<string> &lconfig, vector<string> &target);
-
+int server(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets);
 struct instructions{
     int (*unpack)(string instruct,vector<string> &, vector<string> &, vector<string> &) = NULL;
     int (*construct)(string instruct,vector<string> &, vector<string> &, vector<string> &) = NULL;
     int (*update)(string instruct,vector<string> &, vector<string> &, vector<string> &) = NULL;
+    int (*server)(string instruct,vector<string> &, vector<string> &, vector<string> &) = NULL;
 };
 
 int main(int argc, const char *argv[]){
@@ -33,10 +34,11 @@ int main(int argc, const char *argv[]){
     vector<string> long_config;
 //    目标
     vector<string> target;
-//    设置函数
+//    注册函数
     struct instructions istns;
     istns.construct = construct;
     istns.update = update;
+    istns.server = server;
     
 //    解析命令
     int if_instruct = 1;
@@ -67,6 +69,10 @@ int main(int argc, const char *argv[]){
         if(istns.update != nullptr) istns.update(instruct,config,long_config,target);
         else printf("Function not found.\n");
     }
+    else if (instruct == "server"){
+        if(istns.update != nullptr) istns.server(instruct,config,long_config,target);
+        else printf("Function not found.\n");
+    }
     else{
         printf("Instruction \"%s\" doesn't make sense.\n",instruct.data());
     }
@@ -79,6 +85,15 @@ bool config_search(vector<string> &configs,string tfg){
         if(config == tfg) return true;
     }
     return false;
+}
+
+int server(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets){
+    initClock();
+    setThreadsClock();
+    Server nsvr;
+    setServerClock(&nsvr, 2);
+    while(1) usleep(10000);
+    return 0;
 }
 
 int update(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets){

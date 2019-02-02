@@ -14,8 +14,10 @@ extern list<clock_register> clocks_list;
 void setServerClock(Server *psvr, int clicks){
     clock_register ncr;
     ncr.if_thread = true;
-    ncr.click = 2;
+    ncr.click = 3;
+    ncr.rawclick = 3;
     ncr.func = serverDeamon;
+    ncr.arg = (void *)psvr;
     clocks_list.push_back(ncr);
 }
 
@@ -210,26 +212,28 @@ raw_data Server::ProcessSignedRawMsg(char *p_rdt, ssize_t size){
     return trdt;
 }
 
-void *serverDeamon(void *psvr){
-    Server svr = *((Server *) psvr);
+void *serverDeamon(void *pvcti){
+    clock_thread_info *pcti = (clock_thread_info *) pvcti;
+    Server *psvr = (Server *) pcti->args;
     //cout<<"Server Deamon Checked."<<endl;
     Addr f_addr;
     
-    int prm = svr.packet_max;
+    int prm = psvr->packet_max;
     ssize_t tlen;
     char *str = nullptr;
     printf("Checking Packet.\n");
     do{
-        tlen = svr.socket.RecvRAW(&str);
+        tlen = psvr->socket.RecvRAW(&str);
         if(tlen > 0){
             //                记录有效数据包
             if(Server::CheckRawMsg(str, tlen)){
                 raw_data trdt = Server::ProcessSignedRawMsg(str, tlen);
-                svr.rawdata_in.push_back(trdt);
+                psvr->rawdata_in.push_back(trdt);
             }
         }
         free(str);
     }while (tlen && prm-- > 0);
-    setServerClock(&svr, 2);
+    pcti->if_reset = true;
+    clockThreadFinish(pcti->tid);
     pthread_exit(NULL);
 }

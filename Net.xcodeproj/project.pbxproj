@@ -17,6 +17,9 @@
 		9277A18921FEB21D009C5F11 /* libsqlite3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 9277A18821FEB21D009C5F11 /* libsqlite3.dylib */; };
 		9277A18C220076EE009C5F11 /* sql.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A18A220076EE009C5F11 /* sql.cpp */; };
 		9277A190220079DB009C5F11 /* cproj_proj.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A18F220079DB009C5F11 /* cproj_proj.cpp */; };
+		92C34C272205C63A00AB38D3 /* server.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15821FD725F009C5F11 /* server.cpp */; };
+		92C34C282205C94600AB38D3 /* addr.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15221FD725F009C5F11 /* addr.cpp */; };
+		92C34C292205C95F00AB38D3 /* socket.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15321FD725F009C5F11 /* socket.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -33,7 +36,6 @@
 
 /* Begin PBXFileReference section */
 		9221D9EB21EA5142007310A7 /* Net */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Net; sourceTree = BUILT_PRODUCTS_DIR; };
-		9221DA1621EB8C02007310A7 /* pcs.map */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; name = pcs.map; path = build/Debug/PCS/pcs.map; sourceTree = "<group>"; };
 		9277A14621FD7246009C5F11 /* cmap.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = cmap.h; path = include/cmap.h; sourceTree = "<group>"; };
 		9277A14721FD7246009C5F11 /* server.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = server.h; path = include/server.h; sourceTree = "<group>"; };
 		9277A14821FD7246009C5F11 /* net.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = net.h; path = include/net.h; sourceTree = "<group>"; };
@@ -56,8 +58,6 @@
 		9277A15A21FD725F009C5F11 /* cpart.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = cpart.cpp; path = src/cpart.cpp; sourceTree = "<group>"; };
 		9277A15B21FD725F009C5F11 /* memory.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = memory.cpp; path = src/memory.cpp; sourceTree = "<group>"; };
 		9277A15C21FD725F009C5F11 /* clock.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = clock.cpp; path = src/clock.cpp; sourceTree = "<group>"; };
-		9277A16A21FE034F009C5F11 /* a.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = a.cpp; path = build/Debug/PCS/srcs/a.cpp; sourceTree = "<group>"; };
-		9277A16C21FE0357009C5F11 /* da.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = da.cpp; path = build/Debug/PCS/srcs/da.cpp; sourceTree = "<group>"; };
 		9277A18821FEB21D009C5F11 /* libsqlite3.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libsqlite3.dylib; path = build/Debug/Libraries/libsqlite3.dylib; sourceTree = "<group>"; };
 		9277A18A220076EE009C5F11 /* sql.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sql.cpp; path = src/sql.cpp; sourceTree = "<group>"; };
 		9277A18D22007758009C5F11 /* sql.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = sql.h; path = include/sql.h; sourceTree = "<group>"; };
@@ -97,11 +97,8 @@
 		9221DA0E21EB5FAD007310A7 /* Net */ = {
 			isa = PBXGroup;
 			children = (
-				9277A16C21FE0357009C5F11 /* da.cpp */,
-				9277A16A21FE034F009C5F11 /* a.cpp */,
 				925A13AA21EC989500CBD427 /* include */,
 				9277A15121FD724C009C5F11 /* src */,
-				9221DA1621EB8C02007310A7 /* pcs.map */,
 			);
 			name = Net;
 			sourceTree = "<group>";
@@ -219,6 +216,9 @@
 				9277A16021FD725F009C5F11 /* md5.cpp in Sources */,
 				9277A16521FD725F009C5F11 /* cmap.cpp in Sources */,
 				9277A16221FD725F009C5F11 /* main.cpp in Sources */,
+				92C34C272205C63A00AB38D3 /* server.cpp in Sources */,
+				92C34C282205C94600AB38D3 /* addr.cpp in Sources */,
+				92C34C292205C95F00AB38D3 /* socket.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
