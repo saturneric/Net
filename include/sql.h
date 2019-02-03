@@ -37,6 +37,8 @@ namespace sql {
     int insert_info(sqlite3 *psql, sqlite3_stmt **psqlsmt, string table_name, vector<pair<string, string>>value);
 //    生成字符串格式的数据
     string string_type(string str);
+//    输出错误信息
+    void printError(sqlite3 *psql);
 }
 
 #endif /* sql_h */

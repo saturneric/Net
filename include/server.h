@@ -25,6 +25,7 @@ struct compute_result{
     vector<int> *fargs_out;
 };
 
+
 //通用数据包类
 class packet{
 public:
@@ -54,6 +55,14 @@ public:
     }
 };
 
+struct server_info{
+    string tag;
+    string name;
+    string msqes_ip;
+    int msqes_prot;
+    string key;
+};
+
 //通用服务器类
 class Server{
 protected:
@@ -61,6 +70,7 @@ protected:
     vector<packet> packets_in;
 //    缓存带标签的二进制串管理结构
     vector<raw_data> rawdata_in;
+    struct server_info tsi;
 public:
 //    服务器类的接收套接字对象与发送套接字对象
     SocketUDPServer socket;

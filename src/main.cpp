@@ -18,12 +18,29 @@
 int update(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets);
 int construct(string instruct,vector<string> &config, vector<string> &lconfig, vector<string> &target);
 int server(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets);
+int init(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets);
+int set(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets);
+
 struct instructions{
-    int (*unpack)(string instruct,vector<string> &, vector<string> &, vector<string> &) = NULL;
-    int (*construct)(string instruct,vector<string> &, vector<string> &, vector<string> &) = NULL;
-    int (*update)(string instruct,vector<string> &, vector<string> &, vector<string> &) = NULL;
-    int (*server)(string instruct,vector<string> &, vector<string> &, vector<string> &) = NULL;
+    int (*unpack)(string, vector<string> &, vector<string> &, vector<string> &) = NULL;
+    int (*construct)(string, vector<string> &, vector<string> &, vector<string> &) = NULL;
+    int (*update)(string, vector<string> &, vector<string> &, vector<string> &) = NULL;
+    int (*server)(string, vector<string> &, vector<string> &, vector<string> &) = NULL;
+    int (*set)(string, vector<string> &, vector<string> &, vector<string> &) = NULL;
+    int (*init)(string, vector<string> &, vector<string> &, vector<string> &) = NULL;
 };
+
+namespace error {
+    void printError(string error_info){
+        printf("\033[31mError: %s\n\033[0m",error_info.data());
+    }
+    void printWarning(string warning_info){
+        printf("\033[33mWarning: %s\n\033[0m",warning_info.data());
+    }
+    void printSuccess(string succes_info){
+        printf("\033[32m%s\n\033[0m",succes_info.data());
+    }
+}
 
 int main(int argc, const char *argv[]){
 //    命令
@@ -39,6 +56,8 @@ int main(int argc, const char *argv[]){
     istns.construct = construct;
     istns.update = update;
     istns.server = server;
+    istns.init = init;
+    istns.set = set;
     
 //    解析命令
     int if_instruct = 1;
@@ -63,18 +82,26 @@ int main(int argc, const char *argv[]){
 //    处理命令
     if(instruct == "construct"){
         if(istns.construct != nullptr) istns.construct(instruct,config,long_config,target);
-        else printf("Function not found.\n");
+        else error::printError("Function not found.");
     }
     else if (instruct == "update"){
         if(istns.update != nullptr) istns.update(instruct,config,long_config,target);
-        else printf("Function not found.\n");
+        else error::printError("Function not found.");
     }
     else if (instruct == "server"){
         if(istns.update != nullptr) istns.server(instruct,config,long_config,target);
-        else printf("Function not found.\n");
+        else error::printError("Function not found.");
+    }
+    else if (instruct == "init"){
+        if(istns.update != nullptr) istns.init(instruct,config,long_config,target);
+        else error::printError("Function not found.");
+    }
+    else if (instruct == "set"){
+        if(istns.update != nullptr) istns.set(instruct,config,long_config,target);
+        else error::printError("Function not found.");
     }
     else{
-        printf("Instruction \"%s\" doesn't make sense.\n",instruct.data());
+        printf("\033[33mInstruction \"%s\" doesn't make sense.\n\033[0m",instruct.data());
     }
     
     return 0;
@@ -87,11 +114,136 @@ bool config_search(vector<string> &configs,string tfg){
     return false;
 }
 
+int init(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets){
+    sqlite3 *psql;
+    sqlite3_stmt *psqlsmt;
+    sqlite3_open("info.db", &psql);
+    const char *pzTail;
+    try {
+        sql::table_create(psql, "server_info", {
+            {"name","TEXT"},
+            {"tag","TEXT"},
+            {"admin_key_sha1","TEXT"},
+            {"msqes_ip","TEXT"},
+            {"msqes_port","INT"},
+            {"msqes_key","TEXT"},
+            {"msqes_rsa_public","TEXT"},
+        });
+        sql::table_create(psql, "sqes_info", {
+            {"sqes_ip","TEXT PRIMARY KEY"},
+            {"sqes_port","INT"},
+            {"sqes_key","TEXT"},
+            {"rsa_public","TEXT"},
+        });
+    } catch (const char *error_info) {
+        if(!strcmp(error_info, "fail to create table")){
+            if(!config_search(configs, "-f")){
+                printf("\033[33mWarning: Have Already run init process.Try configure -f to continue.\n\033[0m");
+                return 0;
+            }
+            else{
+                string sql_quote = "DELETE FROM server_info;";
+                sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+                int rtn = sqlite3_step(psqlsmt);
+                if(rtn == SQLITE_DONE){
+                    
+                }
+                else{
+                    const char *error = sqlite3_errmsg(psql);
+                    int errorcode =  sqlite3_extended_errcode(psql);
+                    printf("\033[31mSQL Error: [%d]%s\n\033[0m",errorcode,error);
+                    throw error;
+                }
+                sqlite3_finalize(psqlsmt);
+            }
+        }
+    }
+    
+    
+    sql::insert_info(psql, &psqlsmt, "server_info", {
+        {"name","?1"},
+        {"tag","?2"}
+    });
+    if(setting_file::if_name_illegal(targets[0]));
+    else{
+        error::printError("Args(name) abnormal.");
+    }
+    if(setting_file::if_name_illegal(targets[1]));
+    else{
+        error::printError("Args(tag) abnormal.");
+    }
+    sqlite3_bind_text(psqlsmt, 1, targets[0].data(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(psqlsmt, 2, targets[1].data(), -1, SQLITE_TRANSIENT);
+    int rtn = sqlite3_step(psqlsmt);
+    if(rtn == SQLITE_DONE){
+        
+    }
+    else throw "sql writes error";
+    sqlite3_finalize(psqlsmt);
+    sqlite3_close(psql);
+    return 0;
+}
+
+int set(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets){
+    sqlite3 *psql;
+    sqlite3_stmt *psqlsmt;
+    const char *pzTail;
+    if(sqlite3_open("info.db", &psql) == SQLITE_ERROR){
+        sql::printError(psql);
+    }
+    string sql_quote = "SELECT count(*) FROM sqlite_master WHERE name = 'server_info';";
+    sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+    sqlite3_step(psqlsmt);
+    int if_find = sqlite3_column_int(psqlsmt, 0);
+    if(if_find);
+    else{
+        error::printError("Couldn't do set before init process.");
+        return -1;
+    }
+    sqlite3_finalize(psqlsmt);
+    if(targets[0] == "square"){
+        sql_quote = "UPDATE server_info SET msqes_ip = ?1, msqes_port = ?2 WHERE rowid = 1;";
+        sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+        
+        if(!Addr::checkValidIP(targets[1])){
+            error::printError("Args(ipaddr) abnomal.");
+            sqlite3_finalize(psqlsmt);
+            sqlite3_close(psql);
+            return -1;
+        }
+        sqlite3_bind_text(psqlsmt, 1, targets[1].data(), -1, SQLITE_TRANSIENT);
+        
+        stringstream ss;
+        ss<<targets[2];
+        int port;
+        ss>>port;
+        if(port > 0 && port <= 65535);
+        else{
+            error::printError("Args(port) abnomal.");
+            sqlite3_finalize(psqlsmt);
+            sqlite3_close(psql);
+            return -1;
+        }
+        sqlite3_bind_int(psqlsmt, 2, port);
+        int rtn = sqlite3_step(psqlsmt);
+        if(rtn != SQLITE_DONE){
+            sql::printError(psql);
+        }
+        sqlite3_finalize(psqlsmt);
+    }
+    else if (targets[1] == "key"){
+        
+    }
+    error::printSuccess("Succeed.");
+    sqlite3_close(psql);
+    return 0;
+}
+
 int server(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets){
     initClock();
     setThreadsClock();
     Server nsvr;
-    setServerClock(&nsvr, 2);
+    setServerClock(&nsvr, 3);
     while(1) usleep(10000);
     return 0;
 }

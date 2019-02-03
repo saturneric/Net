@@ -123,8 +123,17 @@ namespace sql {
         }
         
     }
+    
     string string_type(string str){
         return "\'"+str+"\'";
+    }
+    
+    void printError(sqlite3 *psql){
+        if(psql != nullptr){
+            const char *error = sqlite3_errmsg(psql);
+            int errorcode =  sqlite3_extended_errcode(psql);
+            printf("\033[31mSQL Error: [%d]%s\n\033[0m",errorcode,error);
+        }
     }
     
 }

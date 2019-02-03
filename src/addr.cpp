@@ -73,3 +73,16 @@ void Addr::SetIpv6(void){
     address.sin_family = AF_INET6;
     SetSize();
 }
+
+bool Addr::checkValidIP(string ipaddr){
+    char temp[31];
+    int a,b,c,d;
+    
+    if (sscanf(ipaddr.data(), "%d.%d.%d.%d ", &a, &b, &c, &d) == 4 && a >= 0 && a <= 255 && b >= 0 && b <= 255 && c >= 0 && c <= 255 && d >= 0 && d <= 255){
+        sprintf(temp, "%d.%d.%d.%d", a, b, c, d); //把格式化的数据写入字符串temp
+        if (!strcmp(temp, ipaddr.data())) return true; //success
+        else return false;
+    }
+    else return false;
+    return true;
+}

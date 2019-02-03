@@ -38,6 +38,8 @@ public:
     struct sockaddr *RawObj(void);
     void SetIpv4(void);
     void SetIpv6(void);
+    static bool checkValidIP(string ipaddr);
+
 };
 
 //服务器套接字类

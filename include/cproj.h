@@ -47,6 +47,14 @@ struct stn_read{
 
 //配置文件通用方法类
 class setting_file{
+public:
+    //    检查名字是否合法
+    static bool if_name_illegal(string str){
+        for(auto c:str){
+            if(!if_illegal(c)) return false;
+        }
+        return true;
+    }
 protected:
 //    检查路径或文件
     void check_paths(string main_path, vector<string> paths){
@@ -55,16 +63,9 @@ protected:
         }
     }
 //    检查字符是否合法
-    bool if_illegal(char c){
+    static bool if_illegal(char c){
         if(isalnum(c) || c == '_') return true;
         else return false;
-    }
-//    检查名字是否合法
-    bool if_name_illegal(string str){
-        for(auto c:str){
-            if(!if_illegal(c)) return false;
-        }
-        return true;
     }
 //    寻找保留字
     bool search_key(ifstream &ifsfile,string key){
