@@ -1,3 +1,5 @@
+#include "type.h"
+#include "rsa.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -5,20 +7,13 @@
 #include <time.h>
 #include <string.h>
 
+// Change this line to the file you'd like to use as a source of primes.
+// The format of the file should be one prime per line.
+string PRIME_SOURCE_FILE = "primes.txt";
 
 char buffer[1024];
 const int MAX_DIGITS = 50;
 int i,j = 0;
-
-struct public_key_class{
-  long long modulus;
-  long long exponent;
-};
-
-struct private_key_class{
-  long long modulus;
-  long long exponent;
-};
 
 
 // This should totally be in the math library.
@@ -61,11 +56,11 @@ long long rsa_modExp(long long b, long long e, long long m)
 
 // Calling this function will generate a public and private key and store them in the pointers
 // it is given. 
-void rsa_gen_keys(struct public_key_class *pub, struct private_key_class *priv, char *PRIME_SOURCE_FILE)
+void rsa_gen_keys(struct public_key_class *pub, struct private_key_class *priv, string PRIME_SOURCE_FILE)
 {
   FILE *primes_list;
-  if(!(primes_list = fopen(PRIME_SOURCE_FILE, "r"))){
-    fprintf(stderr, "Problem reading %s\n", PRIME_SOURCE_FILE);
+  if(!(primes_list = fopen(PRIME_SOURCE_FILE.data(), "r"))){
+    fprintf(stderr, "Problem reading %s\n", PRIME_SOURCE_FILE.data());
     exit(1);
   }
 
@@ -147,7 +142,7 @@ void rsa_gen_keys(struct public_key_class *pub, struct private_key_class *priv, 
 long long *rsa_encrypt(const char *message, const unsigned long message_size, 
                      const struct public_key_class *pub)
 {
-  long long *encrypted = malloc(sizeof(long long)*message_size);
+  long long *encrypted = (long long *) malloc(sizeof(long long)*message_size);
   if(encrypted == NULL){
     fprintf(stderr,
      "Error: Heap allocation failed.\n");
@@ -172,8 +167,8 @@ char *rsa_decrypt(const long long *message,
   }
   // We allocate space to do the decryption (temp) and space for the output as a char array
   // (decrypted)
-  char *decrypted = malloc(message_size/sizeof(long long));
-  char *temp = malloc(message_size);
+  char *decrypted = (char *) malloc(message_size/sizeof(long long));
+  char *temp = (char *) malloc(message_size);
   if((decrypted == NULL) || (temp == NULL)){
     fprintf(stderr,
      "Error: Heap allocation failed.\n");

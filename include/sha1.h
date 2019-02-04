@@ -7,6 +7,7 @@
    100% Public Domain
  */
 
+#include "type.h"
 #include "stdint.h"
 
 typedef struct
@@ -40,5 +41,7 @@ void SHA1(
     char *hash_out,
     const char *str,
     int len);
+
+void SHA1_Easy(string &hexresult , string &str, size_t len);
 
 #endif /* SHA1_H */

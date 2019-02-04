@@ -294,3 +294,14 @@ void SHA1(
     hash_out[20] = '\0';
 }
 
+
+void SHA1_Easy(string &hexresult , string &str, size_t len){
+    char thexresult[41];
+    char result[20];
+    SHA1( result, str.data(), (int)str.size());
+    /*format the hash for comparison */
+    for(int offset = 0; offset < 20; offset++) {
+        sprintf( ( thexresult + (2*offset)), "%02x", result[offset]&0xff);
+    }
+    hexresult = thexresult;
+}

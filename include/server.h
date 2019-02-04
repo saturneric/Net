@@ -13,6 +13,7 @@
 #include "net.h"
 #include "cpart.h"
 #include "cthread.h"
+#include "rsa.h"
 
 class Server;
 
@@ -25,6 +26,12 @@ struct compute_result{
     vector<int> *fargs_out;
 };
 
+//请求数据包
+struct request {
+    uint64_t r_id;
+    string type;
+    string data;
+};
 
 //通用数据包类
 class packet{
@@ -67,10 +74,11 @@ struct server_info{
 class Server{
 protected:
 //    缓存通用数据包
-    vector<packet> packets_in;
+    list<packet *> packets_in;
 //    缓存带标签的二进制串管理结构
-    vector<raw_data> rawdata_in;
+    list<raw_data *> rawdata_in;
     struct server_info tsi;
+    sqlite3 *psql;
 public:
 //    服务器类的接收套接字对象与发送套接字对象
     SocketUDPServer socket;
@@ -83,13 +91,14 @@ public:
 //    重新设置服务器的发送IP地址
     void SetSendIP(string ip_addr);
 //    将结构数据包转换成二进制串
-    static raw_data Packet2Rawdata(packet tpkt);
+    static void Packet2Rawdata(packet &tpkt, raw_data &rdt);
 //    将通用二进制串转换为通用数据包
     static packet Rawdata2Packet(raw_data trdta);
 //    释放二进制串占用的空间
     static void freeRawdataServer(struct raw_data trdt);
 //    释放通用数据包包占用
     static void freePcaketServer(struct packet tpkt);
+    
 //    释放计算结果包占用的空间
     static void freeCPURServer(struct compute_result tcpur);
 //    给二进制串贴上识别标签
@@ -99,9 +108,11 @@ public:
 //    检查消息串是否为一个贴上标签的二进制串
     static bool CheckRawMsg(char *p_rdt, ssize_t size);
 //    处理一个已贴上标签的原始二进制串，获得其包含的信息
-    static raw_data ProcessSignedRawMsg(char *p_rdt, ssize_t size);
+    static void ProcessSignedRawMsg(char *p_rdt, ssize_t size, raw_data &rdt);
 //    服务器守护线程
     friend void *serverDeamon(void *psvr);
+//    处理RawData
+    void ProcessRawData(void);
     
     
 };
@@ -114,6 +125,17 @@ public:
     static packet CPURS2Packet(compute_result tcpur);
 //    将结构数据包转化为计算结果包
     static compute_result Packet2CPUR(packet *tpkt);
+};
+
+class SQEServer:public Server{
+protected:
+//    请求数据包
+    list<request> req_list;
+//    服务器公私钥
+    public_key_class pkc;
+    private_key_class prc;
+public:
+    SQEServer(void);
 };
 
 //设置服务器守护程序的时钟

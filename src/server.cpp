@@ -24,6 +24,7 @@ void setServerClock(Server *psvr, int clicks){
 
 Server::Server(int port, string send_ip,int send_port):socket(port),send_socket(send_ip,send_port){
     socket.UDPSetFCNTL();
+    
 }
 
 void Server::SetSendPort(int port){
@@ -82,11 +83,10 @@ packet CNodeServer::CPURS2Packet(compute_result tcpur){
     return rawpkt;
 }
 
-raw_data Server::Packet2Rawdata(packet tpkt){
-    raw_data rdta;
+void Server::Packet2Rawdata(packet &tpkt, raw_data &rdt){
     char *data = (char *)malloc(BUFSIZ);
     memset(data, 0, BUFSIZ);
-    rdta.data = data;
+    rdt.data = data;
     char *idx = data;
     string fdata;
 //        写入包ID信息
@@ -100,27 +100,24 @@ raw_data Server::Packet2Rawdata(packet tpkt){
         memcpy(idx, (*i).second, (*i).first);
         idx += (*i).first;
     }
-    rdta.size = idx - data;
-    return rdta;
+    rdt.size = idx - data;
 }
 
-packet Server::Rawdata2Packet(raw_data trdta){
-    packet pkt;
-    char *idx = trdta.data;
+Server::Rawdata2Packet(packet &tpkt, raw_data &trdt){
+    char *idx = trdt.data;
 //        数据包ID
     uint32_t uint;
-    memcpy(&pkt.type, idx, sizeof(uint32_t));
+    memcpy(&tpkt.type, idx, sizeof(uint32_t));
     idx += sizeof(uint32_t);
 //        数据包主体
-    while(idx - trdta.data < trdta.size){
+    while(idx - trdt.data < trdt.size){
         memcpy(&uint, idx, sizeof(uint32_t));
         idx += sizeof(uint32_t);
         void *data = malloc(uint);
         memcpy(data, idx, uint);
         idx += uint;
-        pkt.buffs.push_back({uint,data});
+        tpkt.buffs.push_back({uint,data});
     }
-    return pkt;
 }
 
 compute_result CNodeServer::Packet2CPUR(packet *tpkt){
@@ -184,6 +181,7 @@ void Server::SignedRawdata(struct raw_data *trdt,string info){
     idx += trdt->size;
     memcpy(idx, &trdt->tail, sizeof(uint32_t));
     trdt->msg = msg;
+    
 }
 
 int Server::SentRawdata(struct raw_data *trdt){
@@ -204,17 +202,14 @@ bool Server::CheckRawMsg(char *p_rdt, ssize_t size){
     else return false;
 }
 
-raw_data Server::ProcessSignedRawMsg(char *p_rdt, ssize_t size){
-    raw_data trdt;
-    trdt.data = (char *)malloc(size-3*sizeof(uint32_t));
-    memcpy(&trdt.info, p_rdt+sizeof(uint32_t), sizeof(uint32_t));
-    memcpy(trdt.data, p_rdt+sizeof(uint32_t)*2, size-3*sizeof(uint32_t));
-    trdt.size = size-3*sizeof(uint32_t);
-    return trdt;
+void ProcessSignedRawMsg(char *p_rdt, ssize_t size, raw_data &rdt){
+    rdt.data = (char *)malloc(size-3*sizeof(uint32_t));
+    memcpy(&rdt.info, p_rdt+sizeof(uint32_t), sizeof(uint32_t));
+    memcpy(rdt.data, p_rdt+sizeof(uint32_t)*2, size-3*sizeof(uint32_t));
+    rdt.size = size-3*sizeof(uint32_t);
 }
 
 void *serverDeamon(void *pvcti){
-    
     clock_thread_info *pcti = (clock_thread_info *) pvcti;
     Server *psvr = (Server *) pcti->args;
     //cout<<"Server Deamon Checked."<<endl;
@@ -230,12 +225,51 @@ void *serverDeamon(void *pvcti){
 //            记录有效数据包
             if(Server::CheckRawMsg(str, tlen)){
                 printf("Get\n");
-                raw_data trdt = Server::ProcessSignedRawMsg(str, tlen);
-                psvr->rawdata_in.push_back(trdt);
+                raw_data *ptrdt = new raw_data();
+                Server::ProcessSignedRawMsg(str, tlen, *ptrdt);
+                psvr->rawdata_in.push_back(ptrdt);
             }
         }
         free(str);
     }while (tlen && prm-- > 0);
     clockThreadFinish(pcti->tid);
     pthread_exit(NULL);
+}
+
+void Server::ProcessRawData(void){
+    for(auto prdt : rawdata_in){
+        if(memcmp(prdt->info, "SPKT", sizeof(uint32_t))){
+            packet *pnpkt = new packet();
+            Rawdata2Packet(pnpkt,prdt);
+            packets_in.push_back(pnpkt);
+            delete prdt;
+        }
+        else{
+            delete prdt;
+        }
+    }
+    rawdata_in.clear();
+}
+
+SQEServer::SQEServer(void){
+    if(sqlite3_open("info.db", &psql) == SQLITE_ERROR){
+        sql::printError(psql);
+        throw "database is abnormal";
+    }
+    sqlite3_stmt psqlsmt;
+    const char *pzTail;
+//    从数据库获得服务器的公私钥
+    string sql_quote = "select sqes_public,sqes_private from server_info where rowid = 1;";
+    sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, pzTail);
+    if(sqlite3_step(psqlsmt) != SQLITE_ROW){
+        sql::printError(psql);
+        throw "database is abnormal";
+    }
+    Byte *tbyt = sqlite3_column_blob(psqlsmt, 0);
+    memcpy(&pkc, tbyt, sizeof(public_key_class));
+    
+    tbyt = sqlite3_column_blob(psqlsmt, 1);
+    memcpy(&prc, tbyt, sizeof(private_key_class));
+    
+    sqlite3_finalize(psqlsmt);
 }
