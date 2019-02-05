@@ -10,8 +10,12 @@
 #include "server.h"
 
 extern list<clock_register> clocks_list;
+pthread_mutex_t mutex,mutex_rp,mutex_pktreq;
 
 void setServerClock(Server *psvr, int clicks){
+    pthread_mutex_init(&mutex, NULL);
+    pthread_mutex_init(&mutex_rp, NULL);
+//    注册数据接收守护时钟
     clock_register *pncr = new clock_register();
     pncr->if_thread = true;
     pncr->if_reset = true;
@@ -20,11 +24,34 @@ void setServerClock(Server *psvr, int clicks){
     pncr->func = serverDeamon;
     pncr->arg = (void *)psvr;
     newClock(pncr);
+    
+//    注册数据处理守护时钟
+    pncr = new clock_register();
+    pncr->if_thread = true;
+    pncr->if_reset = true;
+    pncr->click = clicks*2;
+    pncr->rawclick = clicks*2;
+    pncr->func = dataProcessorDeamon;
+    pncr->arg = (void *)psvr;
+    newClock(pncr);
+}
+
+void setServerClockForSquare(SQEServer *psvr, int clicks){
+    setServerClock(psvr, clicks);
+    pthread_mutex_init(&mutex_pktreq, NULL);
+//    注册标准数据包处理守护时钟
+    clock_register *pncr = new clock_register();
+    pncr->if_thread = true;
+    pncr->if_reset = true;
+    pncr->click = clicks*2+3;
+    pncr->rawclick = clicks*2;
+    pncr->func = packetProcessorDeamonForSquare;
+    pncr->arg = (void *)psvr;
+    newClock(pncr);
 }
 
 Server::Server(int port, string send_ip,int send_port):socket(port),send_socket(send_ip,send_port){
     socket.UDPSetFCNTL();
-    
 }
 
 void Server::SetSendPort(int port){
@@ -103,7 +130,7 @@ void Server::Packet2Rawdata(packet &tpkt, raw_data &rdt){
     rdt.size = idx - data;
 }
 
-Server::Rawdata2Packet(packet &tpkt, raw_data &trdt){
+void Server::Rawdata2Packet(packet &tpkt, raw_data &trdt){
     char *idx = trdt.data;
 //        数据包ID
     uint32_t uint;
@@ -116,7 +143,8 @@ Server::Rawdata2Packet(packet &tpkt, raw_data &trdt){
         void *data = malloc(uint);
         memcpy(data, idx, uint);
         idx += uint;
-        tpkt.buffs.push_back({uint,data});
+        tpkt.AddBuff(data, uint);
+        free(data);
     }
 }
 
@@ -141,7 +169,7 @@ compute_result CNodeServer::Packet2CPUR(packet *tpkt){
 }
 
 
-void Server::freeRawdataServer(struct raw_data trdt){
+void Server::freeRawdataServer(struct raw_data &trdt){
     free(trdt.data);
     if(trdt.msg != NULL) free(trdt.msg);
 }
@@ -149,7 +177,6 @@ void Server::freeRawdataServer(struct raw_data trdt){
 void Server::freePcaketServer(struct packet tpkt){
     for(auto i = tpkt.buffs.begin(); i != tpkt.buffs.end(); i++)
         free(i->second);
-    delete &tpkt.buffs;
 }
 
 void Server::freeCPURServer(struct compute_result tcpur){
@@ -202,7 +229,7 @@ bool Server::CheckRawMsg(char *p_rdt, ssize_t size){
     else return false;
 }
 
-void ProcessSignedRawMsg(char *p_rdt, ssize_t size, raw_data &rdt){
+void Server::ProcessSignedRawMsg(char *p_rdt, ssize_t size, raw_data &rdt){
     rdt.data = (char *)malloc(size-3*sizeof(uint32_t));
     memcpy(&rdt.info, p_rdt+sizeof(uint32_t), sizeof(uint32_t));
     memcpy(rdt.data, p_rdt+sizeof(uint32_t)*2, size-3*sizeof(uint32_t));
@@ -218,58 +245,171 @@ void *serverDeamon(void *pvcti){
     int prm = psvr->packet_max;
     ssize_t tlen;
     char *str = nullptr;
-    printf("Checking Packet.\n");
+    Addr taddr;
     do{
-        tlen = psvr->socket.RecvRAW(&str);
+//        加锁
+        if (pthread_mutex_lock(&mutex) != 0) throw "lock error";
+        tlen = psvr->socket.RecvRAW(&str,taddr);
         if(tlen > 0){
 //            记录有效数据包
+            
             if(Server::CheckRawMsg(str, tlen)){
-                printf("Get\n");
                 raw_data *ptrdt = new raw_data();
                 Server::ProcessSignedRawMsg(str, tlen, *ptrdt);
+                ptrdt->address = *(struct sockaddr_in *)taddr.RawObj();
                 psvr->rawdata_in.push_back(ptrdt);
+                
             }
         }
         free(str);
+//        解锁
+        pthread_mutex_unlock(&mutex);
     }while (tlen && prm-- > 0);
+    
+    clockThreadFinish(pcti->tid);
+    pthread_exit(NULL);
+}
+
+void *dataProcessorDeamon(void *pvcti){
+    clock_thread_info *pcti = (clock_thread_info *) pvcti;
+    Server *psvr = (Server *) pcti->args;
+    psvr->ProcessRawData();
+    clockThreadFinish(pcti->tid);
+    pthread_exit(NULL);
+}
+
+void *packetProcessorDeamonForSquare(void *pvcti){
+    clock_thread_info *pcti = (clock_thread_info *) pvcti;
+    SQEServer *psvr = (SQEServer *) pcti->args;
+    psvr->ProcessPacket();
+    clockThreadFinish(pcti->tid);
+    pthread_exit(NULL);
+}
+
+void *requsetProcessorDeamonForSquare(void *pvcti){
+    clock_thread_info *pcti = (clock_thread_info *) pvcti;
+    SQEServer *psvr = (SQEServer *) pcti->args;
+    psvr->ProcessPacket();
     clockThreadFinish(pcti->tid);
     pthread_exit(NULL);
 }
 
 void Server::ProcessRawData(void){
-    for(auto prdt : rawdata_in){
-        if(memcmp(prdt->info, "SPKT", sizeof(uint32_t))){
+//    一次性最大处理个数
+    int prm = 2048;
+//    加锁
+    if (pthread_mutex_lock(&mutex) != 0) throw "lock error";
+    for(auto &prdt : rawdata_in){
+        if(prdt == nullptr) continue;
+        if(prm-- == 0) break;
+
+        if(!memcmp(&prdt->info, "SPKT", sizeof(uint32_t))){
+//            加锁
+            if (pthread_mutex_lock(&mutex_rp) != 0) throw "lock error";
             packet *pnpkt = new packet();
-            Rawdata2Packet(pnpkt,prdt);
+            Rawdata2Packet(*pnpkt,*prdt);
+            pnpkt->address = prdt->address;
             packets_in.push_back(pnpkt);
-            delete prdt;
+//            解锁
+            pthread_mutex_unlock(&mutex_rp);
         }
         else{
-            delete prdt;
+            
         }
+        freeRawdataServer(*prdt);
+        delete prdt;
+        prdt = nullptr;
+
     }
-    rawdata_in.clear();
+//    解锁
+    pthread_mutex_unlock(&mutex);
+    
+    if (pthread_mutex_lock(&mutex) != 0) throw "lock error";
+    rawdata_in.remove_if([](auto prdt){return prdt == nullptr;});
+    pthread_mutex_unlock(&mutex);
 }
 
-SQEServer::SQEServer(void){
+void SQEServer::ProcessPacket(void){
+    printf("RW: %lu PKT: %lu REQ: %lu\n",rawdata_in.size(),packets_in.size(),req_list.size());
+//    一次性最大处理个数
+    int prm = 2048;
+//    加锁
+    if (pthread_mutex_lock(&mutex_rp) != 0) throw "lock error";
+    for(auto &ppkt : packets_in){
+        if(ppkt == nullptr) continue;
+        if(prm-- == 0) break;
+        if(ppkt->type == REQUSET_TYPE){
+            request *pnreq = new request();
+            Packet2Request(*ppkt, *pnreq);
+            req_list.push_back(pnreq);
+        }
+        freePcaketServer(*ppkt);
+        delete ppkt;
+        ppkt = nullptr;
+    }
+//    解锁
+    pthread_mutex_unlock(&mutex_rp);
+    packets_in.remove_if([](auto &ppkt){return ppkt == nullptr;});
+}
+
+SQEServer::SQEServer(int port):Server(port){
     if(sqlite3_open("info.db", &psql) == SQLITE_ERROR){
         sql::printError(psql);
         throw "database is abnormal";
     }
-    sqlite3_stmt psqlsmt;
+    sqlite3_stmt *psqlsmt;
     const char *pzTail;
 //    从数据库获得服务器的公私钥
     string sql_quote = "select sqes_public,sqes_private from server_info where rowid = 1;";
-    sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, pzTail);
+    sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
     if(sqlite3_step(psqlsmt) != SQLITE_ROW){
         sql::printError(psql);
         throw "database is abnormal";
     }
-    Byte *tbyt = sqlite3_column_blob(psqlsmt, 0);
+    Byte *tbyt = (Byte *)sqlite3_column_blob(psqlsmt, 0);
     memcpy(&pkc, tbyt, sizeof(public_key_class));
     
-    tbyt = sqlite3_column_blob(psqlsmt, 1);
+    tbyt = (Byte *)sqlite3_column_blob(psqlsmt, 1);
     memcpy(&prc, tbyt, sizeof(private_key_class));
     
     sqlite3_finalize(psqlsmt);
+}
+
+void SQEServer::Packet2Request(packet &pkt, request &req){
+    if(pkt.type == REQUSET_TYPE){
+        req.r_id = *(uint32_t *)pkt.buffs[0].second;
+        req.type = (const char *)pkt.buffs[1].second;
+        req.data = (const char *)pkt.buffs[2].second;
+        req.t_addr = Addr(*(struct sockaddr_in *)pkt.buffs[3].second);
+    }
+}
+
+void SQEServer::Request2Packet(packet &pkt, request &req){
+    pkt.address = *req.t_addr.Obj();
+//    请求的类型标识号
+    pkt.type = REQUSET_TYPE;
+    pkt.AddBuff((void *)&req.r_id, sizeof(req.r_id));
+    pkt.AddBuff((void *)req.type.data(), (uint32_t)req.type.size());
+    pkt.AddBuff((void *)req.data.data(), (uint32_t)req.data.size());
+    pkt.AddBuff((void *)req.t_addr.Obj(), sizeof(struct sockaddr_in));
+}
+
+void packet::AddBuff(void *pbuff, uint32_t size){
+    void *pnbuff = malloc(size);
+    memcpy(pnbuff, pbuff, size);
+    buffs.push_back({size,pnbuff});
+}
+
+void Server::ProcessRequset(void){
+    
+}
+
+
+request::request(){
+    r_id = rng::tsc_seed{}();
+}
+
+
+packet::~packet(){
+    
 }

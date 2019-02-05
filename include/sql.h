@@ -9,6 +9,8 @@
 #ifndef sql_h
 #define sql_h
 
+#include "type.h"
+
 struct SQLTable{
     string name;
     vector<pair<string, string>> colnums;

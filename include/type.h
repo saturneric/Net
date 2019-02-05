@@ -52,4 +52,7 @@ using std::stringstream;
 
 typedef char Byte;
 
+#define REQUSET_TYPE 100
+#define RESPOND_TYPE 101
+
 #endif /* type_h */

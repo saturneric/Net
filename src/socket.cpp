@@ -65,14 +65,17 @@ ssize_t SocketUDPServer::Recv(string &str){
     }
 }
 
-ssize_t SocketUDPServer::RecvRAW(char **p_rdt){
+ssize_t SocketUDPServer::RecvRAW(char **p_rdt, Addr &taddr){
     ssize_t tlen;
+    
     //            非阻塞输入
     if(set_fcntl){
         tlen = recvfrom(server_sfd, buff, BUFSIZ, 0, server_addr.RawObj(), server_addr.SizeP());
         //            读取错误
         if(tlen == -1 && errno != EAGAIN){
             *p_rdt = nullptr;
+            printf("%d",errno);
+            perror("recv");
             return -1;
         }
         //            缓冲区没有信息
@@ -84,6 +87,7 @@ ssize_t SocketUDPServer::RecvRAW(char **p_rdt){
         else{
             *p_rdt = (char *)malloc(tlen);
             memcpy(*p_rdt, buff, tlen);
+            taddr = server_addr;
             return tlen;
         }
     }

@@ -66,12 +66,12 @@ public :
         }
     }
     ~SocketServer(){
-        close(server_sfd);
+        //close(server_sfd);
     }
 //    接受储存简单字符串
     virtual ssize_t Recv(string &str) = 0;
 //    接受储存二进制串
-    virtual ssize_t RecvRAW(char **p_rdt) = 0;
+    virtual ssize_t RecvRAW(char **p_rdt, Addr &taddr) = 0;
 };
 
 //客户端套接字类
@@ -174,7 +174,7 @@ public:
 //    接受储存简单字符串信息的数据包
     ssize_t Recv(string &str);
 //    接受储存二进制信息的数据包
-    ssize_t RecvRAW(char **p_rdt);
+    ssize_t RecvRAW(char **p_rdt, Addr &taddr);
 //    设置非阻塞模式
     void UDPSetFCNTL(void);
 };

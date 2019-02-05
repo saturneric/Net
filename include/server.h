@@ -13,7 +13,9 @@
 #include "net.h"
 #include "cpart.h"
 #include "cthread.h"
+#include "sqlite3.h"
 #include "rsa.h"
+#include "rng.h"
 
 class Server;
 
@@ -28,9 +30,18 @@ struct compute_result{
 
 //请求数据包
 struct request {
-    uint64_t r_id;
+    rng::rng64 r_id = 0;
     string type;
     string data;
+    Addr t_addr;
+    request();
+};
+
+struct respond {
+    rng::rng64 r_id;
+    string type;
+    string data;
+    Addr t_addr;
 };
 
 //通用数据包类
@@ -38,8 +49,11 @@ class packet{
 public:
 //    数据包类型
     unsigned int type;
+    struct sockaddr_in address;
 //    记录块的大小及内容所在的内存地址
     vector<pair<unsigned int, void *>> buffs;
+    void AddBuff(void *pbuff, uint32_t size);
+    ~packet();
 };
 
 //带标签的二进制串管理结构
@@ -54,6 +68,8 @@ public:
 //    信息串
     char *msg = NULL;
     unsigned long msg_size = 0;
+//    来源ip地址
+    struct sockaddr_in address;
 //    用简单字符串直接出适合
     void setData(string str){
         data = (char *)malloc(str.size());
@@ -83,7 +99,7 @@ public:
 //    服务器类的接收套接字对象与发送套接字对象
     SocketUDPServer socket;
     SocketUDPClient send_socket;
-    int packet_max = 30;
+    int packet_max = 1024;
     Server(int port = 9048, string send_ip = "127.0.0.1",int send_port = 9049);
     
 //    重新设置服务器的发送端口
@@ -93,9 +109,9 @@ public:
 //    将结构数据包转换成二进制串
     static void Packet2Rawdata(packet &tpkt, raw_data &rdt);
 //    将通用二进制串转换为通用数据包
-    static packet Rawdata2Packet(raw_data trdta);
+    static void Rawdata2Packet(packet &tpkt, raw_data &trdt);
 //    释放二进制串占用的空间
-    static void freeRawdataServer(struct raw_data trdt);
+    static void freeRawdataServer(struct raw_data &trdt);
 //    释放通用数据包包占用
     static void freePcaketServer(struct packet tpkt);
     
@@ -130,17 +146,27 @@ public:
 class SQEServer:public Server{
 protected:
 //    请求数据包
-    list<request> req_list;
+    list<request *> req_list;
 //    服务器公私钥
     public_key_class pkc;
     private_key_class prc;
 public:
-    SQEServer(void);
+    SQEServer(int port = 9048);
+    void ProcessPacket(void);
+    void ProcessRequset(void);
+    static void Packet2Request(packet &pkt, request &req);
+    static void Request2Packet(packet &pkt, request &req);
 };
 
 //设置服务器守护程序的时钟
 void setServerClock(Server *psvr, int clicks);
-//服务器守护线程
+//设置广场服务器守护程序的时钟
+void setServerClockForSquare(SQEServer *psvr, int clicks);
+//服务器接收数据包守护线程
 void *serverDeamon(void *psvr);
+//服务器处理原始数据守护进程
+void *dataProcessorDeamon(void *pvcti);
+//广场服务器处理数据包守护进程
+void *packetProcessorDeamonForSquare(void *pvcti);
 
 #endif /* server_h */

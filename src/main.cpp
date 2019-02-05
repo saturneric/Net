@@ -306,11 +306,18 @@ int server(string instruct, vector<string> &configs, vector<string> &lconfigs, v
     sqlite3 *psql;
     sqlite3_stmt *psqlsmt;
     const char *pzTail;
-
     initClock();
     setThreadsClock();
-    Server nsvr;
-    setServerClock(&nsvr, 3);
+    if(targets.size() == 0){
+        Server nsvr;
+        setServerClock(&nsvr, 3);
+    }
+    else{
+        if(targets[0] == "square"){
+            SQEServer nsvr;
+            setServerClockForSquare(&nsvr, 3);
+        }
+    }
     while(1) usleep(10000);
     return 0;
 }
