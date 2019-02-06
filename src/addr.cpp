@@ -15,6 +15,7 @@ Addr::Addr(string ip_addr, int port, bool ipv4){
     else
         address.sin_family = AF_INET6;
     address.sin_port = htons(port);
+    
     address.sin_addr.s_addr = inet_addr(ip_addr.data());
     addr_size = sizeof(address);
 }
@@ -85,4 +86,8 @@ bool Addr::checkValidIP(string ipaddr){
     }
     else return false;
     return true;
+}
+
+void Addr::SetSockAddr(struct sockaddr_in tsi){
+    address = tsi;
 }

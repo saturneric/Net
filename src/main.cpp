@@ -6,22 +6,14 @@
 //  Copyright © 2019年 Bakantu. All rights reserved.
 //
 
-#include "type.h"
-#include "memory.h"
-#include "clock.h"
-#include "net.h"
-#include "cproj.h"
-#include "cpart.h"
-#include "cmap.h"
-#include "cthread.h"
-#include "sha1.h"
-#include "rsa.h"
+#include "instruct.h"
 
 extern string PRIME_SOURCE_FILE;
 
 int update(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets);
 int construct(string instruct,vector<string> &config, vector<string> &lconfig, vector<string> &target);
 int server(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets);
+int client(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets);
 int init(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets);
 int set(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets);
 
@@ -30,6 +22,7 @@ struct instructions{
     int (*construct)(string, vector<string> &, vector<string> &, vector<string> &) = NULL;
     int (*update)(string, vector<string> &, vector<string> &, vector<string> &) = NULL;
     int (*server)(string, vector<string> &, vector<string> &, vector<string> &) = NULL;
+    int (*client)(string, vector<string> &, vector<string> &, vector<string> &) = NULL;
     int (*set)(string, vector<string> &, vector<string> &, vector<string> &) = NULL;
     int (*init)(string, vector<string> &, vector<string> &, vector<string> &) = NULL;
 };
@@ -62,6 +55,7 @@ int main(int argc, const char *argv[]){
     istns.server = server;
     istns.init = init;
     istns.set = set;
+    istns.client = client;
     
 //    解析命令
     int if_instruct = 1;
@@ -102,6 +96,10 @@ int main(int argc, const char *argv[]){
     }
     else if (instruct == "set"){
         if(istns.update != nullptr) istns.set(instruct,config,long_config,target);
+        else error::printError("Function not found.");
+    }
+    else if (instruct == "client"){
+        if(istns.update != nullptr) istns.client(instruct,config,long_config,target);
         else error::printError("Function not found.");
     }
     else{
@@ -222,6 +220,10 @@ int init(string instruct, vector<string> &configs, vector<string> &lconfigs, vec
 }
 
 int set(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets){
+    if(targets.size() < 2){
+        error::printError("Args error.");
+        return -1;
+    }
     sqlite3 *psql;
     sqlite3_stmt *psqlsmt;
     const char *pzTail;
@@ -381,6 +383,11 @@ int construct(string instruct, vector<string> &configs, vector<string> &lconfigs
         return -1;
     }
     printf("\033[32mSucceed.\n\033[0m");
+    return 0;
+}
+
+int client(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets){
+    
     return 0;
 }
 

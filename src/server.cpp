@@ -10,12 +10,13 @@
 #include "server.h"
 
 extern list<clock_register> clocks_list;
-pthread_mutex_t mutex,mutex_rp,mutex_pktreq;
+pthread_mutex_t mutex,mutex_rp,mutex_pktreq,mutex_sndpkt;
 
 void setServerClock(Server *psvr, int clicks){
     pthread_mutex_init(&mutex, NULL);
     pthread_mutex_init(&mutex_rp, NULL);
-//    注册数据接收守护时钟
+    pthread_mutex_init(&mutex_sndpkt, NULL);
+//    注册数据接收时钟
     clock_register *pncr = new clock_register();
     pncr->if_thread = true;
     pncr->if_reset = true;
@@ -25,13 +26,23 @@ void setServerClock(Server *psvr, int clicks){
     pncr->arg = (void *)psvr;
     newClock(pncr);
     
-//    注册数据处理守护时钟
+//    注册数据处理时钟
     pncr = new clock_register();
     pncr->if_thread = true;
     pncr->if_reset = true;
     pncr->click = clicks*2;
     pncr->rawclick = clicks*2;
     pncr->func = dataProcessorDeamon;
+    pncr->arg = (void *)psvr;
+    newClock(pncr);
+    
+//    注册标准数据包发送时钟
+    pncr = new clock_register();
+    pncr->if_thread = true;
+    pncr->if_reset = true;
+    pncr->click = clicks*2;
+    pncr->rawclick = clicks/1.5;
+    pncr->func = sendPacketProcessorDeamonForSquare;
     pncr->arg = (void *)psvr;
     newClock(pncr);
 }
@@ -46,6 +57,16 @@ void setServerClockForSquare(SQEServer *psvr, int clicks){
     pncr->click = clicks*2+3;
     pncr->rawclick = clicks*2;
     pncr->func = packetProcessorDeamonForSquare;
+    pncr->arg = (void *)psvr;
+    newClock(pncr);
+    
+//    注册请求处理守护时钟
+    pncr = new clock_register();
+    pncr->if_thread = true;
+    pncr->if_reset = true;
+    pncr->click = clicks*2+7;
+    pncr->rawclick = clicks/2;
+    pncr->func = requestProcessorDeamonForSquare;
     pncr->arg = (void *)psvr;
     newClock(pncr);
 }
@@ -286,10 +307,19 @@ void *packetProcessorDeamonForSquare(void *pvcti){
     pthread_exit(NULL);
 }
 
-void *requsetProcessorDeamonForSquare(void *pvcti){
+void *requestProcessorDeamonForSquare(void *pvcti){
     clock_thread_info *pcti = (clock_thread_info *) pvcti;
     SQEServer *psvr = (SQEServer *) pcti->args;
-    psvr->ProcessPacket();
+    psvr->ProcessRequset();
+    clockThreadFinish(pcti->tid);
+    pthread_exit(NULL);
+}
+
+void *sendPacketProcessorDeamonForSquare(void *pvcti){
+    clock_thread_info *pcti = (clock_thread_info *) pvcti;
+    SQEServer *psvr = (SQEServer *) pcti->args;
+    
+    psvr->ProcessSendPackets();
     clockThreadFinish(pcti->tid);
     pthread_exit(NULL);
 }
@@ -330,7 +360,6 @@ void Server::ProcessRawData(void){
 }
 
 void SQEServer::ProcessPacket(void){
-    printf("RW: %lu PKT: %lu REQ: %lu\n",rawdata_in.size(),packets_in.size(),req_list.size());
 //    一次性最大处理个数
     int prm = 2048;
 //    加锁
@@ -339,17 +368,20 @@ void SQEServer::ProcessPacket(void){
         if(ppkt == nullptr) continue;
         if(prm-- == 0) break;
         if(ppkt->type == REQUSET_TYPE){
+            if(pthread_mutex_lock(&mutex_pktreq) != 0) throw "lock error";
             request *pnreq = new request();
             Packet2Request(*ppkt, *pnreq);
+            pnreq->t_addr.SetSockAddr(ppkt->address);
             req_list.push_back(pnreq);
+            pthread_mutex_unlock(&mutex_pktreq);
         }
         freePcaketServer(*ppkt);
         delete ppkt;
         ppkt = nullptr;
     }
+    packets_in.remove_if([](auto &ppkt){return ppkt == nullptr;});
 //    解锁
     pthread_mutex_unlock(&mutex_rp);
-    packets_in.remove_if([](auto &ppkt){return ppkt == nullptr;});
 }
 
 SQEServer::SQEServer(int port):Server(port){
@@ -381,6 +413,7 @@ void SQEServer::Packet2Request(packet &pkt, request &req){
         req.type = (const char *)pkt.buffs[1].second;
         req.data = (const char *)pkt.buffs[2].second;
         req.t_addr = Addr(*(struct sockaddr_in *)pkt.buffs[3].second);
+        req.recv_port = *(uint32_t *)pkt.buffs[4].second;
     }
 }
 
@@ -392,6 +425,7 @@ void SQEServer::Request2Packet(packet &pkt, request &req){
     pkt.AddBuff((void *)req.type.data(), (uint32_t)req.type.size());
     pkt.AddBuff((void *)req.data.data(), (uint32_t)req.data.size());
     pkt.AddBuff((void *)req.t_addr.Obj(), sizeof(struct sockaddr_in));
+    pkt.AddBuff((void *)&req.recv_port, sizeof(uint32_t));
 }
 
 void packet::AddBuff(void *pbuff, uint32_t size){
@@ -400,16 +434,85 @@ void packet::AddBuff(void *pbuff, uint32_t size){
     buffs.push_back({size,pnbuff});
 }
 
-void Server::ProcessRequset(void){
+void SQEServer::ProcessRequset(void){
+    printf("RW: %4lu PKT: %4lu REQ: %4lu PKTS: %5lu\n",rawdata_in.size(),packets_in.size(),req_list.size(),packets_out.size());
+//    一次性最大处理数
+    int prm = 2048;
+    if(pthread_mutex_lock(&mutex_pktreq) != 0) throw "lock error";
+    for(auto &preq : req_list){
+        if(preq == nullptr) continue;
+        if(prm-- == 0) break;
+        if(preq->type == "client-square request"){
+            if(preq->data == "request for public key"){
+                
+                respond *pnr = new respond();
+                pnr->r_id = preq->r_id;
+                pnr->SetBuff((Byte *)&pkc, sizeof(public_key_class));
+                pnr->type = "square public key";
+                pnr->t_addr = preq->t_addr;
+                pnr->t_addr.SetPort(preq->recv_port);
+                packet *pnpkt = new packet();
+                Respond2Packet(*pnpkt, *pnr);
+                delete pnr;
+                if(pthread_mutex_lock(&mutex_sndpkt) != 0) throw "lock error";
+                packets_out.push_back(pnpkt);
+                pthread_mutex_unlock(&mutex_sndpkt);
+            }
+        }
+        delete preq;
+        preq = nullptr;
+    }
+    req_list.remove_if([](auto &preq){return preq == nullptr;});
+    pthread_mutex_unlock(&mutex_pktreq);
+}
+
+void SQEServer::Packet2Respond(packet &pkt, respond &res){
     
 }
 
+void SQEServer::Respond2Packet(packet &pkt, respond &res){
+    pkt.type = RESPOND_TYPE;
+    pkt.address = *res.t_addr.Obj();
+    pkt.AddBuff((void *) res.type.data(), (uint32_t)res.type.size());
+    pkt.AddBuff((void *)res.buff, res.buff_size);
+}
 
 request::request(){
     r_id = rng::tsc_seed{}();
 }
 
+void respond::SetBuff(Byte *buff, uint32_t size){
+    void *nbuff = malloc(size);
+    memcpy(nbuff, buff, size);
+    this->buff = (Byte *)nbuff;
+    this->buff_size = size;
+}
 
 packet::~packet(){
     
+}
+
+respond::~respond(){
+    if(buff != nullptr) free(buff);
+}
+
+void Server::ProcessSendPackets(void){
+//    一次性最大处理个数
+    int prm = 512;
+    if(pthread_mutex_lock(&mutex_sndpkt) != 0) throw "lock error";
+    for(auto &ppkt : packets_out){
+        if(ppkt == nullptr) continue;
+        if(prm-- == 0) break;
+        raw_data nrwd;
+        Packet2Rawdata(*ppkt, nrwd);
+        SignedRawdata(&nrwd, "SPKT");
+        send_socket.SetSendSockAddr(ppkt->address);
+        SentRawdata(&nrwd);
+        freeRawdataServer(nrwd);
+        freePcaketServer(*ppkt);
+        delete ppkt;
+        ppkt = nullptr;
+    }
+    packets_out.remove_if([](auto ppkt){return ppkt == nullptr;});
+    pthread_mutex_unlock(&mutex_sndpkt);
 }

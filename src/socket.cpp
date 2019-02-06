@@ -67,10 +67,12 @@ ssize_t SocketUDPServer::Recv(string &str){
 
 ssize_t SocketUDPServer::RecvRAW(char **p_rdt, Addr &taddr){
     ssize_t tlen;
-    
-    //            非阻塞输入
+    sockaddr_in tsai;
+    socklen_t tsai_size = sizeof(sockaddr);
+//    非阻塞读取
     if(set_fcntl){
-        tlen = recvfrom(server_sfd, buff, BUFSIZ, 0, server_addr.RawObj(), server_addr.SizeP());
+        tlen = recvfrom(server_sfd, buff, BUFSIZ, 0, (struct sockaddr *)(&tsai), &tsai_size);
+        
         //            读取错误
         if(tlen == -1 && errno != EAGAIN){
             *p_rdt = nullptr;
@@ -78,16 +80,16 @@ ssize_t SocketUDPServer::RecvRAW(char **p_rdt, Addr &taddr){
             perror("recv");
             return -1;
         }
-        //            缓冲区没有信息
+//        缓冲区没有信息
         else if(tlen == 0 || (tlen == -1 && errno == EAGAIN)){
             *p_rdt = nullptr;
             return 0;
         }
-        //            成功读取信息
+//        成功读取信息
         else{
             *p_rdt = (char *)malloc(tlen);
+            taddr.SetSockAddr(tsai);
             memcpy(*p_rdt, buff, tlen);
-            taddr = server_addr;
             return tlen;
         }
     }
@@ -117,4 +119,8 @@ void SocketUDPClient::Send(string buff){
 
 void SocketUDPClient::SendRAW(char *buff, unsigned long size){
     sendto(client_sfd, buff, size, 0, send_addr.RawObj(), send_addr.Size());
+}
+
+void SocketClient::SetSendSockAddr(struct sockaddr_in tsi){
+    send_addr.SetSockAddr(tsi);
 }

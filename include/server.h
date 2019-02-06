@@ -33,15 +33,24 @@ struct request {
     rng::rng64 r_id = 0;
     string type;
     string data;
+    uint32_t recv_port;
     Addr t_addr;
     request();
 };
 
+//请求监听管理结构
+struct request_listener{
+    
+}
+
 struct respond {
     rng::rng64 r_id;
     string type;
-    string data;
+    Byte *buff = nullptr;
+    uint32_t buff_size;
     Addr t_addr;
+    void SetBuff(Byte *buff, uint32_t size);
+    ~respond();
 };
 
 //通用数据包类
@@ -93,6 +102,8 @@ protected:
     list<packet *> packets_in;
 //    缓存带标签的二进制串管理结构
     list<raw_data *> rawdata_in;
+//    输出的数据包列表
+    list<packet *> packets_out;
     struct server_info tsi;
     sqlite3 *psql;
 public:
@@ -129,6 +140,7 @@ public:
     friend void *serverDeamon(void *psvr);
 //    处理RawData
     void ProcessRawData(void);
+    void ProcessSendPackets(void);
     
     
 };
@@ -156,17 +168,30 @@ public:
     void ProcessRequset(void);
     static void Packet2Request(packet &pkt, request &req);
     static void Request2Packet(packet &pkt, request &req);
+    static void Respond2Packet(packet &pkt, respond &res);
+    static void Packet2Respond(packet &pkt, respond &res);
 };
 
-//设置服务器守护程序的时钟
+class Client{
+    list<request *> req_lst;
+    uint32_t listen_port;
+    
+    
+};
+
+//设置服务器守护线程的时钟
 void setServerClock(Server *psvr, int clicks);
-//设置广场服务器守护程序的时钟
+//设置广场服务器守护线程的时钟
 void setServerClockForSquare(SQEServer *psvr, int clicks);
 //服务器接收数据包守护线程
 void *serverDeamon(void *psvr);
-//服务器处理原始数据守护进程
+//服务器处理原始数据守护线程
 void *dataProcessorDeamon(void *pvcti);
-//广场服务器处理数据包守护进程
+//广场服务器处理数据包守护线程
 void *packetProcessorDeamonForSquare(void *pvcti);
+//广场服务器处理请求守护线程
+void *requestProcessorDeamonForSquare(void *pvcti);
+//服务器发送数据包守护线程
+void *sendPacketProcessorDeamonForSquare(void *pvcti);
 
 #endif /* server_h */

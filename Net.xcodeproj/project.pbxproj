@@ -38,6 +38,7 @@
 
 /* Begin PBXFileReference section */
 		9221D9EB21EA5142007310A7 /* Net */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Net; sourceTree = BUILT_PRODUCTS_DIR; };
+		926E09632209D9D300AD5D5B /* instruct.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = instruct.h; path = include/instruct.h; sourceTree = "<group>"; };
 		9277A14621FD7246009C5F11 /* cmap.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = cmap.h; path = include/cmap.h; sourceTree = "<group>"; };
 		9277A14721FD7246009C5F11 /* server.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = server.h; path = include/server.h; sourceTree = "<group>"; };
 		9277A14821FD7246009C5F11 /* net.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = net.h; path = include/net.h; sourceTree = "<group>"; };
@@ -129,6 +130,7 @@
 				9277A14821FD7246009C5F11 /* net.h */,
 				9277A14721FD7246009C5F11 /* server.h */,
 				9277A15021FD7246009C5F11 /* type.h */,
+				926E09632209D9D300AD5D5B /* instruct.h */,
 			);
 			name = include;
 			sourceTree = "<group>";

@@ -6,21 +6,19 @@
 //  Copyright © 2019年 Bakantu. All rights reserved.
 //
 
-#include "type.h"
-#include "sql.h"
-#include "net.h"
-#include "server.h"
-#include "rng.h"
+#include "instruct.h"
+
 
 int main(int argc, char *argv[])
 {
     try {
-        Server BServer(1081,"127.0.0.1",9048);
+        Server BServer(9050,"127.0.0.1",9048);
         
         while (1) {
             request nreq;
             nreq.type = "client-square request";
             nreq.data = "request for public key";
+            nreq.port = 9050;
             packet *pnpkt = new packet();
             SQEServer::Request2Packet(*pnpkt, nreq);
             raw_data *pnrwd = new raw_data();
@@ -31,6 +29,14 @@ int main(int argc, char *argv[])
             delete pnrwd;
             Server::freePcaketServer(*pnpkt);
             delete pnpkt;
+            Addr taddr;
+            char *buff = nullptr;
+            if(BServer.socket.RecvRAW(&buff, taddr) > 0){
+                printf("Receive: %s\n",buff);
+                free(buff);
+            }
+            
+            
             
         }
         

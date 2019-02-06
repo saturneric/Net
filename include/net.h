@@ -32,6 +32,7 @@ public:
     void SetIP(string ip_addr);
 //    IP地址管理结构的大小变量
     void SetSize(void);
+    void SetSockAddr(struct sockaddr_in);
 //    获得指向IP地址管理结构的指针
     struct sockaddr_in *Obj(void);
 //    获得指向IP地址管理结构的指针
@@ -99,16 +100,18 @@ public :
         }
     }
     ~SocketClient(){
-        close(client_sfd);
+        //close(client_sfd);
     }
-    //    接受储存简单字符串
+//    接受储存简单字符串
     virtual void Send(string buff) = 0;
-    //    接受储存二进制串
+//    接受储存二进制串
     virtual void SendRAW(char *buff, unsigned long size) = 0;
-    //    重新设置发送目的地的端口
+//    重新设置发送目的地的端口
     void SetSendPort(int port);
-    //    重新设置发送目的地的IP地址
+//    重新设置发送目的地的IP地址
     void SetSendIP(string ip);
+//    共享设置发送地址相关信息管理结构
+    void SetSendSockAddr(struct sockaddr_in);
 };
 
 
