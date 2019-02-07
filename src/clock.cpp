@@ -41,8 +41,6 @@ void newClock(clock_register *pncr){
 
 //时钟滴答调用函数
 void threadsClock(int n){
-
-    
 //    处理已完成线程
     for(auto tid : clock_thread_finished){
         clock_thread_info *tcti = clocks_thread_map.find(tid)->second;

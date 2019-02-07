@@ -278,6 +278,7 @@ void *serverDeamon(void *pvcti){
                 raw_data *ptrdt = new raw_data();
                 Server::ProcessSignedRawMsg(str, tlen, *ptrdt);
                 ptrdt->address = *(struct sockaddr_in *)taddr.RawObj();
+                printf("[First]: %d\n",taddr.Obj()->);
                 psvr->rawdata_in.push_back(ptrdt);
                 
             }
@@ -467,14 +468,19 @@ void SQEServer::ProcessRequset(void){
 }
 
 void SQEServer::Packet2Respond(packet &pkt, respond &res){
-    
+    res.r_id = *(uint32_t *)pkt.buffs[0].second;
+    res.t_addr.SetSockAddr(*(struct sockaddr_in *)pkt.buffs[1].second);
+    res.type = (const char *)pkt.buffs[2].second;
+    res.buff_size = pkt.buffs[3].first;
+    memcpy(res.buff,pkt.buffs[3].second,res.buff_size);
 }
 
 void SQEServer::Respond2Packet(packet &pkt, respond &res){
     pkt.type = RESPOND_TYPE;
-    pkt.address = *res.t_addr.Obj();
+    pkt.AddBuff((void *) &res.r_id, sizeof(uint32_t));
+    pkt.AddBuff((void *) res.t_addr.Obj(), sizeof(sockaddr_in));
     pkt.AddBuff((void *) res.type.data(), (uint32_t)res.type.size());
-    pkt.AddBuff((void *)res.buff, res.buff_size);
+    pkt.AddBuff((void *) res.buff, res.buff_size);
 }
 
 request::request(){
@@ -507,6 +513,7 @@ void Server::ProcessSendPackets(void){
         Packet2Rawdata(*ppkt, nrwd);
         SignedRawdata(&nrwd, "SPKT");
         send_socket.SetSendSockAddr(ppkt->address);
+        printf("[Final]: %d\n",ppkt->address.sin_addr.s_addr);
         SentRawdata(&nrwd);
         freeRawdataServer(nrwd);
         freePcaketServer(*ppkt);

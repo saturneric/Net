@@ -30,18 +30,13 @@ struct compute_result{
 
 //请求数据包
 struct request {
-    rng::rng64 r_id = 0;
+    rng::rng64 r_id;
     string type;
     string data;
     uint32_t recv_port;
     Addr t_addr;
     request();
 };
-
-//请求监听管理结构
-struct request_listener{
-    
-}
 
 struct respond {
     rng::rng64 r_id;
@@ -85,6 +80,17 @@ public:
         size = str.size();
         memcpy(data, str.data(),str.size());
     }
+};
+
+//请求监听管理结构
+struct request_listener{
+    void (*callback)(respond *);
+    request *p_req;
+    uint32_t timeout;
+    uint32_t clicks;
+    raw_data trwd;
+    bool active;
+    ~request_listener();
 };
 
 struct server_info{
@@ -173,10 +179,25 @@ public:
 };
 
 class Client{
-    list<request *> req_lst;
+//    请求监听列表
+    list<request_listener *> req_lst;
+//    回复处理列表
+    list<respond *> res_lst;
+//    请求监听端口
     uint32_t listen_port;
-    
-    
+    SocketUDPServer socket;
+    SocketUDPClient send_socket;
+public:
+//    构造函数(send_port指的是发送的目标端口)
+    Client(int port = 9050, string send_ip = "127.0.0.1",int send_port = 9049);
+//    处理请求监听
+    void ProcessRequestListener(void);
+//    新的请求
+    void NewRequest(request **ppreq,string send_ip,int send_port,string type, string data);
+//    新的请求监听
+    void NewRequestListener(request *preq, int timeout, void (*callback)(respond *));
+//    友元回复接受守护进程
+    friend void *clientRespondDeamon(void *);
 };
 
 //设置服务器守护线程的时钟
@@ -193,5 +214,13 @@ void *packetProcessorDeamonForSquare(void *pvcti);
 void *requestProcessorDeamonForSquare(void *pvcti);
 //服务器发送数据包守护线程
 void *sendPacketProcessorDeamonForSquare(void *pvcti);
+
+
+//设置客户端请求监听守护时钟
+void setClientClock(Client *pclient,int clicks);
+//客户端请求监听守护线程
+void *clientRequestDeamon(void *pvclt);
+//客户端回复接收守护线程
+void *clientRespondDeamon(void *pvclt);
 
 #endif /* server_h */
