@@ -19,6 +19,7 @@
 #include "cthread.h"
 #include "sha1.h"
 #include "rsa.h"
+#include "rng.hpp"
 
 namespace error{
     void printError(string error_info);

@@ -77,7 +77,7 @@ void Client::ProcessRequestListener(void){
         for(auto &lreq : req_lst){
             if(!lreq->active) continue;
 //            检查回复号与请求号是否相同
-            if(!memcmp(&lreq->p_req->r_id,&pres->r_id,sizeof(rng::rng64))){
+            if(lreq->p_req->r_id == pres->r_id){
 //                调用回调函数
                 lreq->callback(pres,lreq->args);
                 lreq->active = false;

@@ -15,7 +15,7 @@
 #include "cthread.h"
 #include "sqlite3.h"
 #include "rsa.h"
-#include "rng.h"
+#include "rng.hpp"
 
 class Server;
 
@@ -31,7 +31,7 @@ struct compute_result{
 //请求数据包
 struct request {
 //    匹配id
-    rng::rng64 r_id;
+    uint64_t r_id;
 //    类型
     string type;
 //    数据
@@ -48,7 +48,7 @@ struct request {
 struct encrypt_post{
 //    明文部分
 //    注册客户端id
-    rng::rng64 client_id;
+    uint64_t client_id;
 //    目标ip
     string ip;
 //    目标端口
@@ -65,7 +65,7 @@ struct encrypt_post{
 
 //回复数据包
 struct respond {
-    rng::rng64 r_id;
+    uint64_t r_id;
     string type;
     Byte *buff = nullptr;
     uint32_t buff_size;
@@ -90,7 +90,7 @@ public:
 //注册客户端管理
 struct client_register{
 //    客户端id
-    rng::rng64 client_id;
+    uint64_t client_id;
 //    通信密钥
     rng::rng128 key;
     
@@ -136,6 +136,11 @@ struct server_info{
     string msqes_ip;
     int msqes_prot;
     string key;
+};
+
+struct aes_key256{
+    uint64_t key[4];
+    aes_key256();
 };
 
 //通用服务器类

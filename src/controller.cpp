@@ -342,7 +342,7 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
     public_key_class *ppbc = (public_key_class *)sqlite3_column_blob(psqlsmt, 0);
     nclt.SetPublicKey(*ppbc);
     sqlite3_finalize(psqlsmt);
-    rng::rng128 key
+    
 //    已获得主广场服务器的密钥，进行启动客户端守护进程前的准备工作
     nclt.NewRequest(&preq, msqe_ip, msqe_port, "client-register request", "");
     nclt.NewRequestListener(preq, 30, psql, getSQEPublicKey);

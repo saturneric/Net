@@ -10,6 +10,11 @@
 #include "server.h"
 
 extern list<clock_register> clocks_list;
+extern rng::rng64 rand64;
+extern rng::rng128 rand128;
+
+
+
 pthread_mutex_t mutex,mutex_rp,mutex_pktreq,mutex_sndpkt;
 
 void setServerClock(Server *psvr, int clicks){
@@ -438,7 +443,7 @@ SQEServer::SQEServer(int port):Server(port){
 
 void SQEServer::Packet2Request(packet &pkt, request &req){
     if(pkt.type == REQUSET_TYPE){
-        req.r_id = *(rng::rng64 *)pkt.buffs[0].second;
+        req.r_id = *(uint64_t *)pkt.buffs[0].second;
         req.type = (const char *)pkt.buffs[1].second;
         req.data = (const char *)pkt.buffs[2].second;
         req.t_addr = Addr(*(struct sockaddr_in *)pkt.buffs[3].second);
@@ -496,7 +501,7 @@ void SQEServer::ProcessRequset(void){
 }
 
 void SQEServer::Packet2Respond(packet &pkt, respond &res){
-    res.r_id = *(rng::rng64 *)pkt.buffs[0].second;
+    res.r_id = *(uint64_t *)pkt.buffs[0].second;
     res.t_addr.SetSockAddr(*(struct sockaddr_in *)pkt.buffs[1].second);
     res.type = (const char *)pkt.buffs[2].second;
     res.buff_size = pkt.buffs[3].first;
@@ -514,7 +519,7 @@ void SQEServer::Respond2Packet(packet &pkt, respond &res){
 }
 
 request::request(){
-    r_id = rng::tsc_seed{}();
+    r_id = rand64();
 }
 
 void respond::SetBuff(Byte *buff, uint32_t size){
@@ -551,4 +556,8 @@ void Server::ProcessSendPackets(void){
     }
     packets_out.remove_if([](auto ppkt){return ppkt == nullptr;});
     pthread_mutex_unlock(&mutex_sndpkt);
+}
+
+aes_key256::aes_key256(){
+    for (int i = 0; i < 4; i++) key[i] = rand64();
 }

@@ -8,6 +8,10 @@
 
 #include "instruct.h"
 
+//    初始化随机数引擎
+rng::rng64 rand64(rng::tsc_seed{}());
+rng::rng128 rand128({rng::tsc_seed{}(),rng::tsc_seed{}()});
+
 int main(int argc, const char *argv[]){
 //    命令
     string instruct;

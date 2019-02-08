@@ -80,7 +80,7 @@
 		92C34C38220747B300AB38D3 /* sha1.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = sha1.h; path = include/sha1.h; sourceTree = "<group>"; };
 		92C34C3922074B5B00AB38D3 /* rsa.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = rsa.h; path = include/rsa.h; sourceTree = "<group>"; };
 		92C34C3A22074B6500AB38D3 /* rsa.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = rsa.cpp; path = src/rsa.cpp; sourceTree = "<group>"; };
-		92C34C3C2207F37A00AB38D3 /* rng.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = rng.h; path = include/rng.h; sourceTree = "<group>"; };
+		92C34C3C2207F37A00AB38D3 /* rng.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = rng.hpp; path = include/rng.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -130,7 +130,7 @@
 				9277A14C21FD7246009C5F11 /* clock.h */,
 				9277A14621FD7246009C5F11 /* cmap.h */,
 				9277A14921FD7246009C5F11 /* compute.h */,
-				92C34C3C2207F37A00AB38D3 /* rng.h */,
+				92C34C3C2207F37A00AB38D3 /* rng.hpp */,
 				92C34C38220747B300AB38D3 /* sha1.h */,
 				9277A14B21FD7246009C5F11 /* cpart.h */,
 				9277A14A21FD7246009C5F11 /* cthread.h */,
