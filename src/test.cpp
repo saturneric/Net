@@ -18,10 +18,11 @@ int main(int argc, char *argv[])
         initClock();
         setThreadsClock();
         setClientClock(&nclt,2);
-        nclt.NewRequest(&preq, "127.0.0.1", 9048, "client-square request", "request for public key");
-        nclt.NewRequestListener(preq, 10, getSQEPublicKey);
+        
         while (1) {
-            sleep(10);
+            nclt.NewRequest(&preq, "127.0.0.1", 9048, "client-square request", "request for public key");
+            nclt.NewRequestListener(preq, 10, getSQEPublicKey);
+            sleep(10000);
         }
         
     } catch (char const *str) {
@@ -29,8 +30,4 @@ int main(int argc, char *argv[])
         return 0;
     }
     
-}
-
-void getSQEPublicKey(respond *pres){
-    printf("Get Respond.\n");
 }

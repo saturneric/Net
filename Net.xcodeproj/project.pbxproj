@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		9227C804220D6E4D00AE694C /* model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9227C803220D6E4D00AE694C /* model.cpp */; };
+		9227C85B220D702800AE694C /* controller.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9227C85A220D702800AE694C /* controller.cpp */; };
+		9227C860220DAD9B00AE694C /* aes.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9227C85F220DAD9B00AE694C /* aes.cpp */; };
 		926E0965220B17FA00AD5D5B /* client.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 926E0964220B17FA00AD5D5B /* client.cpp */; };
 		9277A16021FD725F009C5F11 /* md5.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15421FD725F009C5F11 /* md5.cpp */; };
 		9277A16121FD725F009C5F11 /* cproj_cpt.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15521FD725F009C5F11 /* cproj_cpt.cpp */; };
@@ -39,6 +42,11 @@
 
 /* Begin PBXFileReference section */
 		9221D9EB21EA5142007310A7 /* Net */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Net; sourceTree = BUILT_PRODUCTS_DIR; };
+		9227C803220D6E4D00AE694C /* model.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = model.cpp; path = src/model.cpp; sourceTree = "<group>"; };
+		9227C85A220D702800AE694C /* controller.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = controller.cpp; path = src/controller.cpp; sourceTree = "<group>"; };
+		9227C85E220DAD2800AE694C /* aes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = aes.h; path = include/aes.h; sourceTree = "<group>"; };
+		9227C85F220DAD9B00AE694C /* aes.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = aes.cpp; path = src/aes.cpp; sourceTree = "<group>"; };
+		9227C861220DAF8700AE694C /* aes.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = aes.hpp; path = include/aes.hpp; sourceTree = "<group>"; };
 		926E09632209D9D300AD5D5B /* instruct.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = instruct.h; path = include/instruct.h; sourceTree = "<group>"; };
 		926E0964220B17FA00AD5D5B /* client.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = client.cpp; path = src/client.cpp; sourceTree = "<group>"; };
 		9277A14621FD7246009C5F11 /* cmap.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = cmap.h; path = include/cmap.h; sourceTree = "<group>"; };
@@ -126,12 +134,14 @@
 				92C34C38220747B300AB38D3 /* sha1.h */,
 				9277A14B21FD7246009C5F11 /* cpart.h */,
 				9277A14A21FD7246009C5F11 /* cthread.h */,
+				9227C861220DAF8700AE694C /* aes.hpp */,
 				9277A14D21FD7246009C5F11 /* md5.h */,
 				9277A14F21FD7246009C5F11 /* memory_type.h */,
 				9277A14E21FD7246009C5F11 /* memory.h */,
 				9277A14821FD7246009C5F11 /* net.h */,
 				9277A14721FD7246009C5F11 /* server.h */,
 				9277A15021FD7246009C5F11 /* type.h */,
+				9227C85E220DAD2800AE694C /* aes.h */,
 				926E09632209D9D300AD5D5B /* instruct.h */,
 			);
 			name = include;
@@ -144,6 +154,7 @@
 				9277A15221FD725F009C5F11 /* addr.cpp */,
 				9277A15C21FD725F009C5F11 /* clock.cpp */,
 				9277A15921FD725F009C5F11 /* cmap.cpp */,
+				9227C85F220DAD9B00AE694C /* aes.cpp */,
 				9277A15A21FD725F009C5F11 /* cpart.cpp */,
 				9277A15521FD725F009C5F11 /* cproj_cpt.cpp */,
 				92C34C36220747A200AB38D3 /* sha1.cpp */,
@@ -156,6 +167,8 @@
 				9277A18A220076EE009C5F11 /* sql.cpp */,
 				9277A18F220079DB009C5F11 /* cproj_proj.cpp */,
 				926E0964220B17FA00AD5D5B /* client.cpp */,
+				9227C803220D6E4D00AE694C /* model.cpp */,
+				9227C85A220D702800AE694C /* controller.cpp */,
 			);
 			name = src;
 			sourceTree = "<group>";
@@ -230,13 +243,16 @@
 				9277A16621FD725F009C5F11 /* cpart.cpp in Sources */,
 				9277A16121FD725F009C5F11 /* cproj_cpt.cpp in Sources */,
 				9277A190220079DB009C5F11 /* cproj_proj.cpp in Sources */,
+				9227C85B220D702800AE694C /* controller.cpp in Sources */,
 				92C34C37220747A200AB38D3 /* sha1.cpp in Sources */,
 				9277A16021FD725F009C5F11 /* md5.cpp in Sources */,
 				92C34C3B22074B6500AB38D3 /* rsa.cpp in Sources */,
 				9277A16521FD725F009C5F11 /* cmap.cpp in Sources */,
 				9277A16221FD725F009C5F11 /* main.cpp in Sources */,
+				9227C804220D6E4D00AE694C /* model.cpp in Sources */,
 				92C34C272205C63A00AB38D3 /* server.cpp in Sources */,
 				92C34C282205C94600AB38D3 /* addr.cpp in Sources */,
+				9227C860220DAD9B00AE694C /* aes.cpp in Sources */,
 				92C34C292205C95F00AB38D3 /* socket.cpp in Sources */,
 				926E0965220B17FA00AD5D5B /* client.cpp in Sources */,
 			);

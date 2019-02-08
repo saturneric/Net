@@ -30,14 +30,40 @@ struct compute_result{
 
 //请求数据包
 struct request {
+//    匹配id
     rng::rng64 r_id;
+//    类型
     string type;
+//    数据
     string data;
+//    接收端口
     uint32_t recv_port;
+//    标记是否为加密请求
+    bool if_encrypt;
     Addr t_addr;
     request();
 };
 
+//加密端对端报文
+struct encrypt_post{
+//    明文部分
+//    注册客户端id
+    rng::rng64 client_id;
+//    目标ip
+    string ip;
+//    目标端口
+    int port;
+    
+//    加密部分
+//    匹配id
+    rng::rng64 p_id;
+//    类型
+    uint32_t type;
+//    内容
+    Byte *buff;
+};
+
+//回复数据包
 struct respond {
     rng::rng64 r_id;
     string type;
@@ -57,7 +83,17 @@ public:
 //    记录块的大小及内容所在的内存地址
     vector<pair<unsigned int, void *>> buffs;
     void AddBuff(void *pbuff, uint32_t size);
+    bool if_encrypt = false;
     ~packet();
+};
+
+//注册客户端管理
+struct client_register{
+//    客户端id
+    rng::rng64 client_id;
+//    通信密钥
+    rng::rng128 key;
+    
 };
 
 //带标签的二进制串管理结构
@@ -84,12 +120,13 @@ public:
 
 //请求监听管理结构
 struct request_listener{
-    void (*callback)(respond *);
+    void (*callback)(respond *,void *args);
     request *p_req;
     uint32_t timeout;
     uint32_t clicks;
     raw_data trwd;
     bool active;
+    void *args;
     ~request_listener();
 };
 
@@ -112,6 +149,9 @@ protected:
     list<packet *> packets_out;
     struct server_info tsi;
     sqlite3 *psql;
+//    服务器公私钥
+    public_key_class pkc;
+    private_key_class prc;
 public:
 //    服务器类的接收套接字对象与发送套接字对象
     SocketUDPServer socket;
@@ -142,6 +182,10 @@ public:
     static bool CheckRawMsg(char *p_rdt, ssize_t size);
 //    处理一个已贴上标签的原始二进制串，获得其包含的信息
     static void ProcessSignedRawMsg(char *p_rdt, ssize_t size, raw_data &rdt);
+//    解码已加密的原始二进制串
+    void DecryptRSARawMsg(raw_data &rdt, private_key_class &pkc);
+//    编码原始二进制串
+    void EncryptRSARawMsg(raw_data &rdt, public_key_class &pkc);
 //    服务器守护线程
     friend void *serverDeamon(void *psvr);
 //    处理RawData
@@ -165,9 +209,10 @@ class SQEServer:public Server{
 protected:
 //    请求数据包
     list<request *> req_list;
-//    服务器公私钥
-    public_key_class pkc;
-    private_key_class prc;
+//    注册客户端管理
+    list<client_register *> client_lst;
+//    加密端对端报文
+    list<encrypt_post *>post_lst;
 public:
     SQEServer(int port = 9048);
     void ProcessPacket(void);
@@ -176,6 +221,9 @@ public:
     static void Request2Packet(packet &pkt, request &req);
     static void Respond2Packet(packet &pkt, respond &res);
     static void Packet2Respond(packet &pkt, respond &res);
+    
+    static void Post2Packet(packet &pkt, encrypt_post &pst, rng::rng128 key);
+    static void Packet2Post(packet &pkt, encrypt_post &pst, rng::rng128 key);
 };
 
 class Client{
@@ -187,6 +235,8 @@ class Client{
     uint32_t listen_port;
     SocketUDPServer socket;
     SocketUDPClient send_socket;
+//    广场服务器通信公钥
+    public_key_class sqe_pbc;
 public:
 //    构造函数(send_port指的是发送的目标端口)
     Client(int port = 9050, string send_ip = "127.0.0.1",int send_port = 9049);
@@ -195,7 +245,9 @@ public:
 //    新的请求
     void NewRequest(request **ppreq,string send_ip,int send_port,string type, string data);
 //    新的请求监听
-    void NewRequestListener(request *preq, int timeout, void (*callback)(respond *));
+    void NewRequestListener(request *preq, int timeout, void *args, void (*callback)(respond *, void *));
+//    设置公钥
+    void SetPublicKey(public_key_class &t_pbc);
 //    友元回复接受守护进程
     friend void *clientRespondDeamon(void *);
 };
@@ -222,5 +274,7 @@ void setClientClock(Client *pclient,int clicks);
 void *clientRequestDeamon(void *pvclt);
 //客户端回复接收守护线程
 void *clientRespondDeamon(void *pvclt);
+//客户端待机守护线程
+void *clientWaitDeamon(void *pvclt);
 
 #endif /* server_h */

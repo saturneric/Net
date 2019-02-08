@@ -257,6 +257,20 @@ void Server::ProcessSignedRawMsg(char *p_rdt, ssize_t size, raw_data &rdt){
     rdt.size = size-3*sizeof(uint32_t);
 }
 
+void Server::DecryptRSARawMsg(raw_data &rdt, private_key_class &pkc){
+    Byte *p_data = rdt.data;
+    rdt.data = rsa_decrypt((const long long *) p_data, rdt.size, &pkc);
+    rdt.size /= 8;
+    free(p_data);
+}
+
+void Server::EncryptRSARawMsg(raw_data &rdt, public_key_class &pkc){
+    Byte *p_data = rdt.data;
+    rdt.data = (Byte *) rsa_encrypt((const char *)p_data, rdt.size, &pkc);
+    rdt.size *= 8;
+    free(p_data);
+}
+
 void *serverDeamon(void *pvcti){
     clock_thread_info *pcti = (clock_thread_info *) pvcti;
     Server *psvr = (Server *) pcti->args;
@@ -278,7 +292,6 @@ void *serverDeamon(void *pvcti){
                 raw_data *ptrdt = new raw_data();
                 Server::ProcessSignedRawMsg(str, tlen, *ptrdt);
                 ptrdt->address = *(struct sockaddr_in *)taddr.RawObj();
-                printf("[First]: %d\n",taddr.Obj()->);
                 psvr->rawdata_in.push_back(ptrdt);
                 
             }
@@ -338,6 +351,21 @@ void Server::ProcessRawData(void){
 //            加锁
             if (pthread_mutex_lock(&mutex_rp) != 0) throw "lock error";
             packet *pnpkt = new packet();
+//            标记未加密
+            pnpkt->if_encrypt = false;
+            Rawdata2Packet(*pnpkt,*prdt);
+            pnpkt->address = prdt->address;
+            packets_in.push_back(pnpkt);
+//            解锁
+            pthread_mutex_unlock(&mutex_rp);
+        }
+//        编码加密包
+        else if(!memcmp(&prdt->info, "RPKT", sizeof(uint32_t))){
+            if (pthread_mutex_lock(&mutex_rp) != 0) throw "lock error";
+            packet *pnpkt = new packet();
+//            标记数据已被加密
+            pnpkt->if_encrypt = true;
+            Server::DecryptRSARawMsg(*prdt, prc);
             Rawdata2Packet(*pnpkt,*prdt);
             pnpkt->address = prdt->address;
             packets_in.push_back(pnpkt);
@@ -410,7 +438,7 @@ SQEServer::SQEServer(int port):Server(port){
 
 void SQEServer::Packet2Request(packet &pkt, request &req){
     if(pkt.type == REQUSET_TYPE){
-        req.r_id = *(uint32_t *)pkt.buffs[0].second;
+        req.r_id = *(rng::rng64 *)pkt.buffs[0].second;
         req.type = (const char *)pkt.buffs[1].second;
         req.data = (const char *)pkt.buffs[2].second;
         req.t_addr = Addr(*(struct sockaddr_in *)pkt.buffs[3].second);
@@ -422,7 +450,7 @@ void SQEServer::Request2Packet(packet &pkt, request &req){
     pkt.address = *req.t_addr.Obj();
 //    请求的类型标识号
     pkt.type = REQUSET_TYPE;
-    pkt.AddBuff((void *)&req.r_id, sizeof(req.r_id));
+    pkt.AddBuff((void *)&req.r_id, sizeof(rng::rng64));
     pkt.AddBuff((void *)req.type.data(), (uint32_t)req.type.size());
     pkt.AddBuff((void *)req.data.data(), (uint32_t)req.data.size());
     pkt.AddBuff((void *)req.t_addr.Obj(), sizeof(struct sockaddr_in));
@@ -468,16 +496,18 @@ void SQEServer::ProcessRequset(void){
 }
 
 void SQEServer::Packet2Respond(packet &pkt, respond &res){
-    res.r_id = *(uint32_t *)pkt.buffs[0].second;
+    res.r_id = *(rng::rng64 *)pkt.buffs[0].second;
     res.t_addr.SetSockAddr(*(struct sockaddr_in *)pkt.buffs[1].second);
     res.type = (const char *)pkt.buffs[2].second;
     res.buff_size = pkt.buffs[3].first;
+    res.buff = (Byte *)malloc(res.buff_size);
     memcpy(res.buff,pkt.buffs[3].second,res.buff_size);
 }
 
 void SQEServer::Respond2Packet(packet &pkt, respond &res){
     pkt.type = RESPOND_TYPE;
-    pkt.AddBuff((void *) &res.r_id, sizeof(uint32_t));
+    pkt.address = *res.t_addr.Obj();
+    pkt.AddBuff((void *) &res.r_id, sizeof(rng::rng64));
     pkt.AddBuff((void *) res.t_addr.Obj(), sizeof(sockaddr_in));
     pkt.AddBuff((void *) res.type.data(), (uint32_t)res.type.size());
     pkt.AddBuff((void *) res.buff, res.buff_size);
@@ -513,7 +543,6 @@ void Server::ProcessSendPackets(void){
         Packet2Rawdata(*ppkt, nrwd);
         SignedRawdata(&nrwd, "SPKT");
         send_socket.SetSendSockAddr(ppkt->address);
-        printf("[Final]: %d\n",ppkt->address.sin_addr.s_addr);
         SentRawdata(&nrwd);
         freeRawdataServer(nrwd);
         freePcaketServer(*ppkt);

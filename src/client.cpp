@@ -34,17 +34,18 @@ void *clientRespondDeamon(void *pvclt){
     do{
         tlen = pclient->socket.RecvRAW(&str,taddr);
         if(tlen > 0){
+            
 //            记录有效数据包
             if(Server::CheckRawMsg(str, tlen)){
                 
                 raw_data *ptrdt = new raw_data();
                 Server::ProcessSignedRawMsg(str, tlen, *ptrdt);
                 ptrdt->address = *(struct sockaddr_in *)taddr.RawObj();
-                if (memcmp(&ptrdt->info,"SPKT",sizeof(uint32_t))) {
+                if (!memcmp(&ptrdt->info,"SPKT",sizeof(uint32_t))) {
                     packet npkt;
                     Server::Rawdata2Packet(npkt, *ptrdt);
+                    
                     if(npkt.type == RESPOND_TYPE){
-                        printf("Get Respond.\n");
                         respond *pnres = new respond();
                         SQEServer::Packet2Respond(npkt, *pnres);
 //                        加锁
@@ -77,12 +78,9 @@ void Client::ProcessRequestListener(void){
             if(!lreq->active) continue;
 //            检查回复号与请求号是否相同
             if(!memcmp(&lreq->p_req->r_id,&pres->r_id,sizeof(rng::rng64))){
-//                检查是否为源地址发来的回复
-                if(!memcmp(lreq->p_req->t_addr.Obj(),pres->t_addr.Obj(),sizeof(sockaddr_in))){
-//                    调用回调函数
-                    lreq->callback(pres);
-                    lreq->active = false;
-                }
+//                调用回调函数
+                lreq->callback(pres,lreq->args);
+                lreq->active = false;
             }
         }
         delete pres;
@@ -104,9 +102,9 @@ void Client::ProcessRequestListener(void){
             }
         }
         else{
+            lreq->callback(NULL,lreq->args);
             delete lreq;
             lreq->active = false;
-            printf("Request TimeOut.\n");
         }
     }
 //    请求列表
@@ -147,7 +145,7 @@ void Client::NewRequest(request **ppreq,string send_ip,int send_port,string type
     *ppreq = pnreq;
 }
 
-void Client::NewRequestListener(request *preq, int timeout, void (*callback)(respond *)){
+void Client::NewRequestListener(request *preq, int timeout, void *args, void (*callback)(respond *,void *)){
     request_listener *pnrl = new request_listener();
     packet npkt;
     pnrl->active = true;
@@ -155,6 +153,7 @@ void Client::NewRequestListener(request *preq, int timeout, void (*callback)(res
     pnrl->timeout = timeout;
     pnrl->clicks = 0;
     pnrl->p_req = preq;
+    pnrl->args = args;
     SQEServer::Request2Packet(npkt, *preq);
     Server::Packet2Rawdata(npkt, pnrl->trwd);
     Server::SignedRawdata(&pnrl->trwd,"SPKT");
@@ -166,4 +165,8 @@ void Client::NewRequestListener(request *preq, int timeout, void (*callback)(res
 request_listener::~request_listener(){
     Server::freeRawdataServer(trwd);
     delete p_req;
+}
+
+void Client::SetPublicKey(public_key_class &t_pbc){
+    sqe_pbc = t_pbc;
 }
