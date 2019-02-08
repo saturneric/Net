@@ -561,3 +561,39 @@ void Server::ProcessSendPackets(void){
 aes_key256::aes_key256(){
     for (int i = 0; i < 4; i++) key[i] = rand64();
 }
+
+const uint8_t *aes_key256::GetKey(void){
+    return (const uint8_t *)&key;
+}
+
+void SQEServer::Post2Packet(packet &pkt, encrypt_post &pst, aes_key256 &key){
+    pkt.type = ENCRYPT_POST_TYPE;
+    Addr taddr(pst.ip,pst.port);
+    pkt.address = *taddr.Obj();
+    pkt.AddBuff(&pst.client_id, sizeof(uint64_t));//0
+    pkt.AddBuff(&pst.p_id, sizeof(uint64_t));//1
+    pkt.AddBuff(pst.ip.data(), pst.ip.size());//2
+    pkt.AddBuff(pst.port, sizeof(uint32_t));//3
+    pkt.AddBuff(&pst.buff_size, sizeof(uint32_t));//4
+//    加密数据
+    AES_ctx naes;
+    AES_init_ctx(&naes, key.GetKey());
+    AES_CBC_encrypt_buffer(naes, pst.buff, pst.buff_size);
+    pkt.AddBuff(&pst.buff_size, sizeof(uint32_t));//5
+}
+
+void SQEServer::Packet2Post(packet &pkt, encrypt_post &pst, aes_key256 &key){
+    pst.client_id = *(uint64_t *)pkt.buffs[0];
+    pst.p_id = *(uint64_t *)pkt.buffs[1];
+    pst.ip = (const char *)pkt.buffs[2];
+    pst.port = *(uint32_t *)pkt.buffs[3];
+    pst.buff_size = *(uint32_t)pkt.buffs[4];
+    Byte *t_data = (Byte *)malloc(pst.buff_size);
+    memcpy(t_data, pkt.buffs[5], pst.buff_size);
+//    解密数据
+    AES_ctx naes;
+    AES_init_ctx(&naes, key.GetKey());
+    AES_CBC_decrypt_buffer(&naes, t_data, pst.buff_size);
+    pst.buff = t_data;
+}
+

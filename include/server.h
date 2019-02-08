@@ -16,6 +16,7 @@
 #include "sqlite3.h"
 #include "rsa.h"
 #include "rng.hpp"
+#include "aes.hpp"
 
 class Server;
 
@@ -46,21 +47,20 @@ struct request {
 
 //加密端对端报文
 struct encrypt_post{
-//    明文部分
 //    注册客户端id
     uint64_t client_id;
 //    目标ip
     string ip;
 //    目标端口
     int port;
-    
-//    加密部分
 //    匹配id
-    rng::rng64 p_id;
+    uint64_t p_id;
 //    类型
     uint32_t type;
 //    内容
     Byte *buff;
+//    内容长度
+    uint32_t buff_size;
 };
 
 //回复数据包
@@ -139,8 +139,12 @@ struct server_info{
 };
 
 struct aes_key256{
+private:
     uint64_t key[4];
+public:
+//    生成新的随机密钥
     aes_key256();
+    const uint8_t *GetKey(void);
 };
 
 //通用服务器类
@@ -227,8 +231,8 @@ public:
     static void Respond2Packet(packet &pkt, respond &res);
     static void Packet2Respond(packet &pkt, respond &res);
     
-    static void Post2Packet(packet &pkt, encrypt_post &pst, rng::rng128 key);
-    static void Packet2Post(packet &pkt, encrypt_post &pst, rng::rng128 key);
+    static void Post2Packet(packet &pkt, encrypt_post &pst, aes_key256 &key);
+    static void Packet2Post(packet &pkt, encrypt_post &pst, aes_key256 &key);
 };
 
 class Client{
@@ -242,6 +246,8 @@ class Client{
     SocketUDPClient send_socket;
 //    广场服务器通信公钥
     public_key_class sqe_pbc;
+//    报文密钥
+    aes_key256 post_key;
 public:
 //    构造函数(send_port指的是发送的目标端口)
     Client(int port = 9050, string send_ip = "127.0.0.1",int send_port = 9049);
