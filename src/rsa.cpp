@@ -139,13 +139,10 @@ void rsa_gen_keys(struct public_key_class *pub, struct private_key_class *priv, 
 }
 
 
-long long *rsa_encrypt(const unsigned char *message, const unsigned long message_size,
-                     const struct public_key_class *pub)
-{
-  int64_t *encrypted = (int64_t *) malloc(sizeof(int64_t)*message_size);
+uint64_t *rsa_encrypt(const unsigned char *message, const unsigned long message_size,const struct public_key_class *pub){
+  uint64_t *encrypted = (uint64_t *) malloc(sizeof(int64_t)*message_size);
   if(encrypted == NULL){
-    fprintf(stderr,
-     "Error: Heap allocation failed.\n");
+    fprintf(stderr, "Error: Heap allocation failed.\n");
     return NULL;
   }
   long long i = 0;
@@ -156,26 +153,23 @@ long long *rsa_encrypt(const unsigned char *message, const unsigned long message
 }
 
 
-unsigned char *rsa_decrypt(const long long *message, 
-                  const unsigned long message_size, 
-                  const struct private_key_class *priv)
-{
-  if(message_size % sizeof(long long) != 0){
+unsigned char *rsa_decrypt(const uint64_t *message, const unsigned long message_size, const struct private_key_class *priv){
+  if(message_size % sizeof(uint64_t) != 0){
     fprintf(stderr,
      "Error: message_size is not divisible by %d, so cannot be output of rsa_encrypt\n", (int)sizeof(long long));
      return NULL;
   }
   // We allocate space to do the decryption (temp) and space for the output as a char array
   // (decrypted)
-  unsigned char *decrypted = (unsigned char *) malloc(message_size/sizeof(long long));
-  char *temp = (char *) malloc(message_size);
+  unsigned char *decrypted = (unsigned char *) malloc(message_size/sizeof(uint64_t));
+  unsigned char *temp = (unsigned char *) malloc(message_size);
   if((decrypted == NULL) || (temp == NULL)){
     fprintf(stderr,
      "Error: Heap allocation failed.\n");
     return NULL;
   }
   // Now we go through each 8-byte chunk and decrypt it.
-  long long i = 0;
+  uint64_t i = 0;
   for(i=0; i < message_size/8; i++){
     temp[i] = rsa_modExp(message[i], priv->exponent, priv->modulus);
   }

@@ -95,15 +95,6 @@ public:
     ~packet();
 };
 
-//注册客户端管理
-struct client_register{
-//    客户端id
-    uint64_t client_id;
-//    通信密钥
-    rng::rng128 key;
-    
-};
-
 //带标签的二进制串管理结构
 class raw_data{
 public:
@@ -153,6 +144,7 @@ struct aes_key256{
 //    生成新的随机密钥
     aes_key256();
     const uint8_t *GetKey(void);
+    
 };
 
 //UDP分包
@@ -189,6 +181,17 @@ struct box_listener{
     void TogtRawData(raw_data &trdt);
 //    释放动态数组所关联的所有内存
     void free_boxs(void);
+};
+
+//注册客户端管理
+struct client_register{
+//    客户端id
+    uint64_t client_id;
+//    通信密钥
+    aes_key256 key;
+    string name;
+    string tag;
+    uint32_t clicks;
 };
 
 //通用服务器类
@@ -271,7 +274,7 @@ protected:
 //    请求数据包
     list<request *> req_list;
 //    注册客户端管理
-    list<client_register *> client_lst;
+    map<uint64_t,client_register *> client_lst;
 //    加密端对端报文
     list<encrypt_post *>post_lst;
 public:
@@ -285,8 +288,10 @@ public:
     
     static void Post2Packet(packet &pkt, encrypt_post &pst, aes_key256 &key);
     static void Packet2Post(packet &pkt, encrypt_post &pst, aes_key256 &key);
+    static void GetPostInfo(packet &pkt, encrypt_post &pst);
 };
 
+//通用客户端类
 class Client{
 //    请求监听列表
     list<request_listener *> req_lst;
@@ -325,7 +330,6 @@ public:
     friend void *clientRespondDeamon(void *);
 //    友元客户端控制器
     friend int client(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets);
-    
 };
 
 //设置服务器守护线程的时钟

@@ -369,9 +369,10 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
     StringBuffer strbuff;
     Writer<StringBuffer> writer(strbuff);
     reqdata.Accept(writer);
-    
+    string json_str = strbuff.GetString();
+    printf("JSON: %s\n",json_str.data());
 //    已获得主广场服务器的密钥，进行启动客户端守护进程前的准备工作
-    nclt.NewRequest(&preq, msqe_ip, msqe_port, "client-register request", strbuff.GetString(), true);
+    nclt.NewRequest(&preq, msqe_ip, msqe_port, "client-register request", json_str, true);
     nclt.NewRequestListener(preq, 9999, psql,registerSQECallback);
     
     if_wait = 1;

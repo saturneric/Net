@@ -15,7 +15,7 @@ extern rng::rng128 rand128;
 
 
 
-pthread_mutex_t mutex,mutex_rp,mutex_pktreq,mutex_sndpkt,mutex_box;
+pthread_mutex_t mutex,mutex_rp,mutex_pktreq,mutex_sndpkt,mutex_box,mutex_cltreg;
 
 void setServerClock(Server *psvr, int clicks){
     if(!clicks) throw "clock clicks error";
@@ -72,12 +72,13 @@ void setServerClock(Server *psvr, int clicks){
     pncr->rawclick = clicks*2.5+1;
     pncr->func = boxsCleaningProcessorDeamon;
     pncr->arg = (void *)psvr;
-    //newClock(pncr);
+    newClock(pncr);
 }
 
 void setServerClockForSquare(SQEServer *psvr, int clicks){
     setServerClock(psvr, clicks);
     pthread_mutex_init(&mutex_pktreq, NULL);
+    pthread_mutex_init(&mutex_cltreg, NULL);
 //    注册标准数据包处理守护时钟
     clock_register *pncr = new clock_register();
     pncr->if_thread = true;
@@ -265,10 +266,6 @@ void Client::SendRawData(raw_data *trdt){
         uint64_t aidx = 0,bidx = 0;
         int64_t alls = trdt->msg_size;
         uint64_t tmp_cnt = (trdt->msg_size/256), tmp_idx = 0;
-        printf("MSG_LEN: %lu\n",trdt->msg_size);
-        string md5;
-        MD5EncryptEasy(md5, trdt->msg, trdt->msg_size);
-        printf("MD5: %s\n",md5.data());
         while(bidx < trdt->msg_size-1){
             alls -= 256;
             if(alls > 256) bidx = aidx+255;
@@ -280,7 +277,6 @@ void Client::SendRawData(raw_data *trdt){
             nnb.idx = tmp_idx;
             UByte *f_byte = (UByte *)&trdt->msg[aidx];
             nnb.set(f_byte,bidx-aidx+1);
-            //printf("BOX_SIZE: %lu",bidx-aidx+1);
             
             nnb.build();
             send_socket.SendRAW((Byte *)nnb.send_data, nnb.sdt_size);
@@ -296,22 +292,22 @@ int Server::SentRawdata(struct raw_data *trdt){
     if(trdt->msg_size > 256){
         uint64_t aidx = 0,bidx = 0;
         int64_t alls = trdt->msg_size;
-        uint64_t tmp_cnt = trdt->msg_size/256, tmp_idx = 0;
-        printf("MSG_SIZE: %lu\n",trdt->msg_size);
-        while(alls > 0){
-            if((alls-256) > 256) bidx = aidx+256;
-            else bidx = trdt->msg_size;
+        uint64_t tmp_cnt = (trdt->msg_size/256), tmp_idx = 0;
+        while(bidx < trdt->msg_size-1){
+            alls -= 256;
+            if(alls > 256) bidx = aidx+255;
+            else bidx = trdt->msg_size-1;
 //            构造UDP分包
             net_box nnb;
-            UByte *f_byte = (UByte *)&trdt->msg[aidx], *b_byte = (UByte *)&trdt->msg[bidx];
             nnb.b_id = trdt->r_id;
             nnb.cnt = tmp_cnt;
             nnb.idx = tmp_idx;
-            nnb.set(f_byte, b_byte-f_byte+1);
+            UByte *f_byte = (UByte *)&trdt->msg[aidx];
+            nnb.set(f_byte,bidx-aidx+1);
+            
             nnb.build();
             send_socket.SendRAW((Byte *)nnb.send_data, nnb.sdt_size);
             aidx = bidx+1;
-            alls -= 256;
             tmp_idx++;
         }
     }
@@ -366,14 +362,14 @@ void Server::ProcessSignedRawMsg(char *p_rdt, ssize_t size, raw_data &rdt){
 
 void Server::DecryptRSARawMsg(raw_data &rdt, private_key_class &pkc){
     UByte *p_data = rdt.data;
-    rdt.data = rsa_decrypt((const long long *) p_data, rdt.size, &pkc);
+    rdt.data = rsa_decrypt((const uint64_t *) p_data, rdt.size, &pkc);
     rdt.size /= 8;
     free(p_data);
 }
 
 void Server::EncryptRSARawMsg(raw_data &rdt, public_key_class &pkc){
     UByte *p_data = rdt.data;
-    rdt.data = (unsigned char *)rsa_encrypt((const unsigned char *)p_data, rdt.size, &pkc);
+    rdt.data = (UByte *)rsa_encrypt((const UByte *)p_data, rdt.size, &pkc);
     rdt.size *= 8;
     free(p_data);
 }
@@ -395,7 +391,6 @@ void *serverDeamon(void *pvcti){
         if(tlen > 0){
 //            记录UDP分包
             if(Server::CheckNetBox(str, tlen)){
-                //printf("BOX_STRING_LEN: %llu\n",tlen);
                 net_box *pnbx = new net_box();
                 Server::ProcessNetBox(*pnbx, str);
                 auto pnbxl_itr = psvr->boxls.end();
@@ -426,7 +421,6 @@ void *serverDeamon(void *pvcti){
                     if (pthread_mutex_lock(&mutex_box) != 0) throw "lock error";
                     psvr->boxls.insert({pnbxl->b_id,pnbxl});
                     pthread_mutex_unlock(&mutex_box);
-                    printf("New NetBox Listener. %lu\n",psvr->boxls.size());
                 }
                 
                 
@@ -467,13 +461,11 @@ void *boxProcessorDeamon(void *pvcti){
     for(auto boxl_pair : psvr->boxls){
         box_listener *pboxl = boxl_pair.second;
         if(pboxl->clicks < 0) continue;
-        printf("PBOXL: %u/%u\n",pboxl->nbn,pboxl->cnt);
         if(pboxl->cnt == pboxl->nbn){
             raw_data *pnrdt = new raw_data();
             pboxl->TogtRawData(*pnrdt);
             pnrdt->r_id = pboxl->b_id;
             psvr->rawdata_in.push_back(pnrdt);
-            printf("NetBox Completed.\n");
             pboxl->clicks = -1;
             pboxl->free_boxs();
         }
@@ -490,7 +482,6 @@ void *boxProcessorDeamon(void *pvcti){
     for(auto i = psvr->boxls.begin(); i != psvr->boxls.end();){
         if(i->second->clicks == -1){
             delete i->second;
-            printf("Delete NetBox Listener.\n");
             i = psvr->boxls.erase(i);
         }
         
@@ -579,8 +570,7 @@ void Server::ProcessRawData(void){
         }
 //        编码加密包
         else if(!memcmp(&prdt->info, "RPKT", sizeof(uint32_t))){
-            printf("GET:RPKT!!!\n");
-            /*if (pthread_mutex_lock(&mutex_rp) != 0) throw "lock error";
+            if (pthread_mutex_lock(&mutex_rp) != 0) throw "lock error";
             packet *pnpkt = new packet();
 //            标记数据已被加密
             pnpkt->if_encrypt = true;
@@ -589,7 +579,7 @@ void Server::ProcessRawData(void){
             pnpkt->address = prdt->address;
             packets_in.push_back(pnpkt);
 //            解锁
-            pthread_mutex_unlock(&mutex_rp);*/
+            pthread_mutex_unlock(&mutex_rp);
         }
         else{
             
@@ -622,6 +612,15 @@ void SQEServer::ProcessPacket(void){
             pnreq->t_addr.SetSockAddr(ppkt->address);
             req_list.push_back(pnreq);
             pthread_mutex_unlock(&mutex_pktreq);
+        }
+        if(ppkt->type == ENCRYPT_POST_TYPE){
+            encrypt_post *ecpst = new encrypt_post();
+            GetPostInfo(*ppkt, *ecpst);
+            auto tgtclt = client_lst.find(ecpst->client_id);
+            if(tgtclt != client_lst.end()){
+                client_register *pclr = tgtclt->second;
+                Packet2Post(*ppkt, *ecpst, pclr->key);
+            }
         }
         freePcaketServer(*ppkt);
         delete ppkt;
@@ -658,10 +657,12 @@ SQEServer::SQEServer(int port):Server(port){
 void SQEServer::Packet2Request(packet &pkt, request &req){
     if(pkt.type == REQUSET_TYPE){
         req.r_id = *(uint64_t *)pkt.buffs[0].second;
-        req.type = (const char *)pkt.buffs[1].second;
-        req.data = (const char *)pkt.buffs[2].second;
-        req.t_addr = Addr(*(struct sockaddr_in *)pkt.buffs[3].second);
-        req.recv_port = *(uint32_t *)pkt.buffs[4].second;
+        uint64_t type_size = *(uint64_t *)pkt.buffs[1].second;
+        req.type = string((const char *)pkt.buffs[2].second,type_size);
+        uint64_t data_size = *(uint64_t *)pkt.buffs[3].second;
+        req.data = string((const char *)pkt.buffs[4].second,data_size);
+        req.t_addr = Addr(*(struct sockaddr_in *)pkt.buffs[5].second);
+        req.recv_port = *(uint32_t *)pkt.buffs[6].second;
     }
 }
 
@@ -669,11 +670,15 @@ void SQEServer::Request2Packet(packet &pkt, request &req){
     pkt.address = *req.t_addr.Obj();
 //    请求的类型标识号
     pkt.type = REQUSET_TYPE;
-    pkt.AddBuff((void *)&req.r_id, sizeof(rng::rng64));
-    pkt.AddBuff((void *)req.type.data(), (uint32_t)req.type.size());
-    pkt.AddBuff((void *)req.data.data(), (uint32_t)req.data.size());
-    pkt.AddBuff((void *)req.t_addr.Obj(), sizeof(struct sockaddr_in));
-    pkt.AddBuff((void *)&req.recv_port, sizeof(uint32_t));
+    pkt.AddBuff((void *)&req.r_id, sizeof(uint64_t));//0
+    uint64_t type_size = req.type.size();
+    pkt.AddBuff((void *)&type_size, sizeof(uint64_t));//1
+    pkt.AddBuff((void *)req.type.data(), (uint32_t)req.type.size());//2
+    uint64_t data_size = req.data.size();
+    pkt.AddBuff((void *)&data_size, sizeof(uint64_t));//3
+    pkt.AddBuff((void *)req.data.data(), (uint32_t)req.data.size());//4
+    pkt.AddBuff((void *)req.t_addr.Obj(), sizeof(struct sockaddr_in));//5
+    pkt.AddBuff((void *)&req.recv_port, sizeof(uint32_t));//6
 }
 
 void packet::AddBuff(const void *pbuff, uint32_t size){
@@ -707,7 +712,25 @@ void SQEServer::ProcessRequset(void){
             }
         }
         else if(preq->type == "client-register request"){
-            printf("Get!");
+//            解析JSON结构
+            preq->req_doc.Parse(preq->data.data());
+            Document &jdoc = preq->req_doc;
+            if(1){
+                client_register *pclr = new client_register();
+                pclr->client_id = rand64();
+                uint8_t *pkey = (uint8_t *) pclr->key.key;
+                uint32_t idx = 0;
+                for(auto &kitem : jdoc["key"].GetArray())
+                    pkey[idx++] = kitem.GetInt();
+                
+                pclr->name = jdoc["name"].GetString();
+                pclr->tag = jdoc["tag"].GetString();
+                if(pthread_mutex_lock(&mutex_cltreg) != 0) throw "lock error";
+                client_lst.insert({pclr->client_id,pclr});
+                pthread_mutex_unlock(&mutex_cltreg);
+            }
+            
+            
         }
         delete preq;
         preq = nullptr;
@@ -803,6 +826,13 @@ void SQEServer::Post2Packet(packet &pkt, encrypt_post &pst, aes_key256 &key){
     AES_CBC_encrypt_buffer(&naes, (uint8_t *)pst.buff, pst.buff_size);
     pkt.AddBuff(pst.buff, pst.buff_size);//4
     pkt.AddBuff((void *)MD5_HEX.data(), (uint32_t)MD5_HEX.size());//5
+}
+
+void SQEServer::GetPostInfo(packet &pkt, encrypt_post &pst){
+    pst.client_id = *(uint64_t *)pkt.buffs[0].second;
+    pst.p_id = *(uint64_t *)pkt.buffs[1].second;
+    pst.ip = (const char *)pkt.buffs[2].second;
+    pst.port = *(uint32_t *)pkt.buffs[3].second;
 }
 
 void SQEServer::Packet2Post(packet &pkt, encrypt_post &pst, aes_key256 &key){
@@ -901,7 +931,6 @@ void box_listener::TogtRawData(raw_data &trdt){
     }
     Byte *pbyt = (Byte *)malloc(msg_size);
     Byte *idx = pbyt;
-    printf("MSG_SIZE: %u\n",msg_size);
     for(int i = 0; i < cnt; i++){
         net_box *pnb = boxs[i];
         memcpy(idx, pnb->data, pnb->data_size);
