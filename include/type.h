@@ -39,6 +39,10 @@
 #include <memory.h>
 #include <sqlite3.h>
 
+#include <rapidjson/document.h>
+#include <rapidjson/writer.h>
+#include <rapidjson/stringbuffer.h>
+
 
 using std::string;
 using std::vector;
@@ -50,10 +54,13 @@ using std::cout;
 using std::endl;
 using std::stringstream;
 
+using namespace rapidjson;
+
 typedef char Byte;
+typedef unsigned char UByte;
 
 #define REQUSET_TYPE 100
 #define RESPOND_TYPE 101
-#define ENCRYPT_POST_TYPE 101
+#define ENCRYPT_POST_TYPE 102
 
 #endif /* type_h */

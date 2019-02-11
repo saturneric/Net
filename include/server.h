@@ -16,7 +16,8 @@
 #include "sqlite3.h"
 #include "rsa.h"
 #include "rng.hpp"
-#include "aes.hpp"
+#include "aes.h"
+#include "sha1.h"
 
 class Server;
 
@@ -39,10 +40,17 @@ struct request {
     string data;
 //    接收端口
     uint32_t recv_port;
+    
+//    json结构
+    Document req_doc;
+    StringBuffer doc_str;
+    
 //    标记是否为加密请求
     bool if_encrypt;
     Addr t_addr;
     request();
+    void Json2Data(void);
+    void JsonParse(string data_from);
 };
 
 //加密端对端报文
@@ -82,7 +90,7 @@ public:
     struct sockaddr_in address;
 //    记录块的大小及内容所在的内存地址
     vector<pair<unsigned int, void *>> buffs;
-    void AddBuff(void *pbuff, uint32_t size);
+    void AddBuff(const void *pbuff, uint32_t size);
     bool if_encrypt = false;
     ~packet();
 };
@@ -100,8 +108,9 @@ struct client_register{
 class raw_data{
 public:
 //    二进制串
-    char *data = NULL;
+    unsigned char *data = NULL;
     unsigned long size = 0;
+    uint64_t r_id;
 //    标签
     uint32_t head, tail;
     uint32_t info;
@@ -112,10 +121,11 @@ public:
     struct sockaddr_in address;
 //    用简单字符串直接出适合
     void setData(string str){
-        data = (char *)malloc(str.size());
+        data = (unsigned char *)malloc(str.size());
         size = str.size();
         memcpy(data, str.data(),str.size());
     }
+    raw_data();
 };
 
 //请求监听管理结构
@@ -139,12 +149,46 @@ struct server_info{
 };
 
 struct aes_key256{
-private:
     uint64_t key[4];
-public:
 //    生成新的随机密钥
     aes_key256();
     const uint8_t *GetKey(void);
+};
+
+//UDP分包
+struct net_box{
+    uint16_t idx;
+    uint16_t cnt;
+    uint32_t head;
+    uint32_t tail;
+    uint64_t b_id;
+    void *data = nullptr;
+    uint16_t data_size = 0;
+    
+    UByte *send_data = nullptr;
+    uint16_t sdt_size = 0;
+    void set(void *pbuff, uint16_t pbsize);
+    void build(void);
+    void FreeNetBox(void);
+    net_box();
+    ~net_box();
+};
+
+//UDP分包监听结构
+struct box_listener{
+    uint64_t b_id;
+//    生命
+    int32_t clicks;
+//    应该接收的分包数量
+    uint16_t cnt;
+//    接收到的分包数量
+    uint16_t nbn;
+//    储存接收到的分包的动态数组
+    net_box **boxs;
+//    合并分包成RawData
+    void TogtRawData(raw_data &trdt);
+//    释放动态数组所关联的所有内存
+    void free_boxs(void);
 };
 
 //通用服务器类
@@ -156,6 +200,7 @@ protected:
     list<raw_data *> rawdata_in;
 //    输出的数据包列表
     list<packet *> packets_out;
+    map<uint64_t,box_listener *> boxls;
     struct server_info tsi;
     sqlite3 *psql;
 //    服务器公私钥
@@ -192,14 +237,21 @@ public:
 //    处理一个已贴上标签的原始二进制串，获得其包含的信息
     static void ProcessSignedRawMsg(char *p_rdt, ssize_t size, raw_data &rdt);
 //    解码已加密的原始二进制串
-    void DecryptRSARawMsg(raw_data &rdt, private_key_class &pkc);
+    static void DecryptRSARawMsg(raw_data &rdt, private_key_class &pkc);
 //    编码原始二进制串
-    void EncryptRSARawMsg(raw_data &rdt, public_key_class &pkc);
+    static void EncryptRSARawMsg(raw_data &rdt, public_key_class &pkc);
+//    检查是否为UDP分包
+    static bool CheckNetBox(char *p_nb, ssize_t size);
+//    将二进制信息转换成UDP分包
+    static void ProcessNetBox(net_box &tnb, Byte *p_data);
 //    服务器守护线程
     friend void *serverDeamon(void *psvr);
+//    分包处理守护线程
+    friend void *boxProcessorDeamon(void *pvcti);
 //    处理RawData
     void ProcessRawData(void);
     void ProcessSendPackets(void);
+    void CleaningBoxs(void);
     
     
 };
@@ -248,19 +300,32 @@ class Client{
     public_key_class sqe_pbc;
 //    报文密钥
     aes_key256 post_key;
+//    客户端名与标签
+    string name,tag;
+//    广场服务器服务密钥
+    string sqe_key;
+//    数据库
+    sqlite3 *psql;
 public:
 //    构造函数(send_port指的是发送的目标端口)
     Client(int port = 9050, string send_ip = "127.0.0.1",int send_port = 9049);
 //    处理请求监听
     void ProcessRequestListener(void);
 //    新的请求
-    void NewRequest(request **ppreq,string send_ip,int send_port,string type, string data);
+    void NewRequest(request **ppreq,string send_ip,int send_port,string type, string data, bool if_encrypt = false);
 //    新的请求监听
     void NewRequestListener(request *preq, int timeout, void *args, void (*callback)(respond *, void *));
 //    设置公钥
     void SetPublicKey(public_key_class &t_pbc);
+//    设置AES密钥
+    void SetAESKey(aes_key256 &key);
+//    发送RawData
+    void SendRawData(raw_data *trdt);
 //    友元回复接受守护进程
     friend void *clientRespondDeamon(void *);
+//    友元客户端控制器
+    friend int client(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets);
+    
 };
 
 //设置服务器守护线程的时钟
@@ -271,6 +336,10 @@ void setServerClockForSquare(SQEServer *psvr, int clicks);
 void *serverDeamon(void *psvr);
 //服务器处理原始数据守护线程
 void *dataProcessorDeamon(void *pvcti);
+//UDP分包监听守护进程
+void *boxProcessorDeamon(void *pvcti);
+//UDP分包监听清理守护进程
+void *boxsCleaningProcessorDeamon(void *pvcti);
 //广场服务器处理数据包守护线程
 void *packetProcessorDeamonForSquare(void *pvcti);
 //广场服务器处理请求守护线程

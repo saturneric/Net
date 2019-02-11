@@ -204,3 +204,17 @@ void ComputeFile(string path, string &md5_str){
     tmp[32] = '\0';
     md5_str = tmp;
 }
+
+void MD5EncryptEasy(string &hex, const Byte *data, uint32_t length){
+    MD5_CTX md5;
+    char tmp[33];
+    unsigned char md5_value[16];
+    MD5Init(&md5);
+    MD5Update(&md5, (unsigned char *)data, length);
+    MD5Final(&md5, md5_value);
+    for(int i = 0; i < 16; i++){
+        snprintf(tmp+i*2, 3, "%02x", md5_value[i]);
+    }
+    tmp[32] = '\0';
+    hex = (const char *)tmp;
+}

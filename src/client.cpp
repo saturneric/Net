@@ -14,6 +14,16 @@ pthread_mutex_t mutex_clt;
 Client::Client(int port, string send_ip,int send_port):socket(port),send_socket(send_ip,send_port){
     socket.UDPSetFCNTL();
     listen_port = port;
+    sqlite3_stmt *psqlsmt;
+    const char *pzTail;
+    sqlite3_open("info.db", &psql);
+    string sql_quote = "select name,tag,msqes_key from client_info where rowid = 1;";
+    sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+    sqlite3_step(psqlsmt);
+    name = (const char *)sqlite3_column_text(psqlsmt, 0);
+    tag = (const char *)sqlite3_column_text(psqlsmt, 1);
+    sqe_key = (const char *)sqlite3_column_text(psqlsmt, 2);
+    sqlite3_finalize(psqlsmt);
 }
 
 void *clientRequestDeamon(void *pvclt){
@@ -98,7 +108,7 @@ void Client::ProcessRequestListener(void){
 //             重新发送数据包
             if(!(lreq->clicks % 2)){
                 send_socket.SetSendSockAddr(*lreq->p_req->t_addr.Obj());
-                send_socket.SendRAW(lreq->trwd.msg, lreq->trwd.msg_size);
+                SendRawData(&lreq->trwd);
             }
         }
         else{
@@ -135,13 +145,14 @@ void setClientClock(Client *pclient,int clicks){
     
 }
 
-void Client::NewRequest(request **ppreq,string send_ip,int send_port,string type, string data){
+void Client::NewRequest(request **ppreq,string send_ip,int send_port,string type, string data, bool if_encrypt){
     request *pnreq = new request();
     pnreq->type = type;
     pnreq->data = data;
     pnreq->t_addr.SetIP(send_ip);
     pnreq->t_addr.SetPort(send_port);
     pnreq->recv_port = listen_port;
+    pnreq->if_encrypt = if_encrypt;
     *ppreq = pnreq;
 }
 
@@ -156,9 +167,17 @@ void Client::NewRequestListener(request *preq, int timeout, void *args, void (*c
     pnrl->args = args;
     SQEServer::Request2Packet(npkt, *preq);
     Server::Packet2Rawdata(npkt, pnrl->trwd);
-    Server::SignedRawdata(&pnrl->trwd,"SPKT");
+//    检查请求是否要求加密
+    if(preq->if_encrypt == true){
+        Server::EncryptRSARawMsg(pnrl->trwd, sqe_pbc);
+        Server::SignedRawdata(&pnrl->trwd,"RPKT");
+    }
+    else{
+        Server::SignedRawdata(&pnrl->trwd,"SPKT");
+    }
+   
     send_socket.SetSendSockAddr(*pnrl->p_req->t_addr.Obj());
-    send_socket.SendRAW(pnrl->trwd.msg, pnrl->trwd.msg_size);
+    SendRawData(&pnrl->trwd);
     req_lst.push_back(pnrl);
 }
 

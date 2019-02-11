@@ -21,6 +21,8 @@
 #include "rsa.h"
 #include "rng.hpp"
 
+
+
 namespace error{
     void printError(string error_info);
     void printWarning(string warning_info);
@@ -47,5 +49,6 @@ int set(string instruct, vector<string> &configs, vector<string> &lconfigs, vect
 
 bool config_search(vector<string> &configs,string tfg);
 void getSQEPublicKey(respond *pres,void *args);
+void registerSQECallback(respond *pres,void *args);
 
 #endif /* instruct_h */

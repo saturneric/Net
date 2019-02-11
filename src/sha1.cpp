@@ -295,7 +295,7 @@ void SHA1(
 }
 
 
-void SHA1_Easy(string &hexresult , string &str, size_t len){
+void SHA1_Easy(string &hexresult, string &str){
     char thexresult[41];
     char result[20];
     SHA1( result, str.data(), (int)str.size());

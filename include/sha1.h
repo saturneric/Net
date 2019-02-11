@@ -42,6 +42,6 @@ void SHA1(
     const char *str,
     int len);
 
-void SHA1_Easy(string &hexresult , string &str, size_t len);
+void SHA1_Easy(string &hexresult, string &str);
 
 #endif /* SHA1_H */

@@ -139,10 +139,10 @@ void rsa_gen_keys(struct public_key_class *pub, struct private_key_class *priv, 
 }
 
 
-long long *rsa_encrypt(const char *message, const unsigned long message_size, 
+long long *rsa_encrypt(const unsigned char *message, const unsigned long message_size,
                      const struct public_key_class *pub)
 {
-  long long *encrypted = (long long *) malloc(sizeof(long long)*message_size);
+  int64_t *encrypted = (int64_t *) malloc(sizeof(int64_t)*message_size);
   if(encrypted == NULL){
     fprintf(stderr,
      "Error: Heap allocation failed.\n");
@@ -156,7 +156,7 @@ long long *rsa_encrypt(const char *message, const unsigned long message_size,
 }
 
 
-char *rsa_decrypt(const long long *message, 
+unsigned char *rsa_decrypt(const long long *message, 
                   const unsigned long message_size, 
                   const struct private_key_class *priv)
 {
@@ -167,7 +167,7 @@ char *rsa_decrypt(const long long *message,
   }
   // We allocate space to do the decryption (temp) and space for the output as a char array
   // (decrypted)
-  char *decrypted = (char *) malloc(message_size/sizeof(long long));
+  unsigned char *decrypted = (unsigned char *) malloc(message_size/sizeof(long long));
   char *temp = (char *) malloc(message_size);
   if((decrypted == NULL) || (temp == NULL)){
     fprintf(stderr,

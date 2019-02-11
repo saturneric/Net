@@ -45,4 +45,14 @@ void getSQEPublicKey(respond *pres,void *args){
     else if_wait = -1;
 }
 
+void registerSQECallback(respond *pres,void *args){
+    if(pres != nullptr){
+        
+    }
+    else{
+        if_wait = -1;
+        printf("request timeout.\n");
+    }
+}
+
 

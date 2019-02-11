@@ -26,6 +26,7 @@
 		92C34C292205C95F00AB38D3 /* socket.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15321FD725F009C5F11 /* socket.cpp */; };
 		92C34C37220747A200AB38D3 /* sha1.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92C34C36220747A200AB38D3 /* sha1.cpp */; };
 		92C34C3B22074B6500AB38D3 /* rsa.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92C34C3A22074B6500AB38D3 /* rsa.cpp */; };
+		92F543FD220E968C0054E30E /* aes.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92F543FC220E968C0054E30E /* aes.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -81,6 +82,7 @@
 		92C34C3922074B5B00AB38D3 /* rsa.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = rsa.h; path = include/rsa.h; sourceTree = "<group>"; };
 		92C34C3A22074B6500AB38D3 /* rsa.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = rsa.cpp; path = src/rsa.cpp; sourceTree = "<group>"; };
 		92C34C3C2207F37A00AB38D3 /* rng.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = rng.hpp; path = include/rng.hpp; sourceTree = "<group>"; };
+		92F543FC220E968C0054E30E /* aes.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = aes.cpp; path = src/aes.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -157,6 +159,7 @@
 				9227C85F220DAD9B00AE694C /* aes.cpp */,
 				9277A15A21FD725F009C5F11 /* cpart.cpp */,
 				9277A15521FD725F009C5F11 /* cproj_cpt.cpp */,
+				92F543FC220E968C0054E30E /* aes.cpp */,
 				92C34C36220747A200AB38D3 /* sha1.cpp */,
 				9277A15721FD725F009C5F11 /* cthread.cpp */,
 				9277A15621FD725F009C5F11 /* main.cpp */,
@@ -247,6 +250,7 @@
 				92C34C37220747A200AB38D3 /* sha1.cpp in Sources */,
 				9277A16021FD725F009C5F11 /* md5.cpp in Sources */,
 				92C34C3B22074B6500AB38D3 /* rsa.cpp in Sources */,
+				92F543FD220E968C0054E30E /* aes.cpp in Sources */,
 				9277A16521FD725F009C5F11 /* cmap.cpp in Sources */,
 				9277A16221FD725F009C5F11 /* main.cpp in Sources */,
 				9227C804220D6E4D00AE694C /* model.cpp in Sources */,

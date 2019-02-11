@@ -10,6 +10,8 @@
 
 extern string PRIME_SOURCE_FILE;
 
+
+
 //线程阻塞开关
 int if_wait = 1;
 
@@ -36,7 +38,7 @@ int init(string instruct, vector<string> &configs, vector<string> &lconfigs, vec
         sqlite3_bind_blob(psqlsmt, 2, &nprkc, sizeof(private_key_class), SQLITE_TRANSIENT);
         if(targets[1].size() < 6) error::printWarning("Key is too weak.");
         string sha1_hex;
-        SHA1_Easy(sha1_hex, targets[1], targets.size());
+        SHA1_Easy(sha1_hex, targets[1]);
         sqlite3_bind_text(psqlsmt, 3, sha1_hex.data(), -1, SQLITE_TRANSIENT);
         
         if(sqlite3_step(psqlsmt) != SQLITE_DONE){
@@ -171,7 +173,7 @@ int set(string instruct, vector<string> &configs, vector<string> &lconfigs, vect
     else if (targets[0] == "key"){
         if(targets[1] == "admin"){
             string hexresult;
-            SHA1_Easy(hexresult, targets[2], targets[2].size());
+            SHA1_Easy(hexresult, targets[2]);
             if(targets[1].size() < 6){
                 error::printWarning("Key is too weak.");
             }
@@ -319,6 +321,7 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
     if(if_null){
         nclt.NewRequest(&preq, msqe_ip, msqe_port, "client-square request", "request for public key");
         nclt.NewRequestListener(preq, 30, psql, getSQEPublicKey);
+        if_wait = 1;
         while (if_wait == 1) {
             sleep(10);
         }
@@ -343,11 +346,38 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
     nclt.SetPublicKey(*ppbc);
     sqlite3_finalize(psqlsmt);
     
+    aes_key256 naeskey;
+    nclt.SetAESKey(naeskey);
+    
+    string reqstr = " {\"key\":null, \"name\":null, \"tag\":null, \"sqe_key\":null}";
+    
+    Document reqdata;
+    if(reqdata.Parse(reqstr.data()).HasParseError()) throw "fail to parse into json";
+//    key
+    reqdata["key"].SetArray();
+    Value &tmp_key = reqdata["key"];
+    const uint8_t *p_key = naeskey.GetKey();
+    Document::AllocatorType& allocator = reqdata.GetAllocator();
+    for (int idx = 0; idx <32; idx++) {
+        tmp_key.PushBack(p_key[idx],allocator);
+    }
+    
+    reqdata["name"].SetString(nclt.name.data(),(uint32_t)nclt.name.size());
+    reqdata["tag"].SetString(nclt.tag.data(),(uint32_t)nclt.name.size());
+    reqdata["sqe_key"].SetString(nclt.sqe_key.data(), (uint32_t)nclt.sqe_key.size());
+    
+    StringBuffer strbuff;
+    Writer<StringBuffer> writer(strbuff);
+    reqdata.Accept(writer);
+    
 //    已获得主广场服务器的密钥，进行启动客户端守护进程前的准备工作
-    nclt.NewRequest(&preq, msqe_ip, msqe_port, "client-register request", "");
-    nclt.NewRequestListener(preq, 30, psql, getSQEPublicKey);
+    nclt.NewRequest(&preq, msqe_ip, msqe_port, "client-register request", strbuff.GetString(), true);
+    nclt.NewRequestListener(preq, 9999, psql,registerSQECallback);
     
-    
+    if_wait = 1;
+    while (1) {
+        sleep(10);
+    }
     
     return 0;
 }
