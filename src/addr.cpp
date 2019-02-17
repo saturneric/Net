@@ -15,8 +15,9 @@ Addr::Addr(string ip_addr, int port, bool ipv4){
     else
         address.sin_family = AF_INET6;
     address.sin_port = htons(port);
+    in_addr_t ipu = inet_addr(ip_addr.data());
+    memcpy(&address.sin_addr, &ipu, sizeof(in_addr_t));
     
-    address.sin_addr.s_addr = inet_addr(ip_addr.data());
     addr_size = sizeof(address);
 }
 
@@ -53,7 +54,8 @@ void Addr::SetPort(int port){
 }
 
 void Addr::SetIP(string ip_addr){
-    address.sin_addr.s_addr = inet_addr(ip_addr.data());
+    in_addr_t ipu = inet_addr(ip_addr.data());
+    memcpy(&address.sin_addr, &ipu, sizeof(in_addr_t));
     addr_size = sizeof(address);
 }
 

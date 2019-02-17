@@ -53,7 +53,7 @@ void threadsClock(int n){
     
 //    删除到期时钟
     if(clock_erase == 0){
-        printf("Cleaning clocks.\n");
+        //printf("Cleaning clocks.\n");
         clocks_list.remove_if([](clock_register *pclock){return pclock == NULL;});
 //        重设总滴答数
         clock_erase = CLOCKESE;

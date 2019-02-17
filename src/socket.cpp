@@ -18,22 +18,20 @@ void SocketClient::SetSendIP(string ip){
 }
 
 ssize_t SocketTCPCServer::Recv(string &str){
-    ssize_t len=recv(ctn_sfd,buff,BUFSIZ,0);
-    if(len > 0){
-        buff[len] = '\0';
-        string str = buff;
-        return len;
+    ssize_t bdtas = 0 ,tmp_bdtas;
+    while ((tmp_bdtas = read(data_sfd, buff, BUFSIZ)) > 0) {
+        str += string(buff,tmp_bdtas);
+        bdtas += tmp_bdtas;
     }
-    else return -1;
+    return bdtas;
 }
 
-void SocketTCPCServer::Listen(int connection, void (*func)(class Socket &,int ,Addr)){
-    listen(server_sfd, 10);
-    this->func = func;
+int SocketTCPCServer::Listen(void){
+    return listen(server_sfd, 10);
 }
 
 void SocketTCPClient::Send(string str){
-    ssize_t len = send(ctn_sfd,str.data(),str.size(),0);
+    ssize_t len = send(client_sfd,str.data(),str.size(),0);
     if(len != str.size()) throw "size unmatch";
 }
 
@@ -117,10 +115,124 @@ void SocketUDPClient::Send(string buff){
     sendto(client_sfd, buff.data(), buff.size(), 0, send_addr.RawObj(), send_addr.Size());
 }
 
-void SocketUDPClient::SendRAW(char *buff, unsigned long size){
-    sendto(client_sfd, buff, size, 0, send_addr.RawObj(), send_addr.Size());
+ssize_t SocketUDPClient::SendRAW(char *buff, unsigned long size){
+    return sendto(client_sfd, buff, size, 0, send_addr.RawObj(), send_addr.Size());
+}
+
+ssize_t SocketTCPClient::SendRAW(char *buff, unsigned long size){
+    ssize_t send_size = send(client_sfd, buff, size, 0);
+    /*if(send_size < 0){
+        printf("Error[%u]:",errno);
+        perror("send");
+    }*/
+    return send_size;
 }
 
 void SocketClient::SetSendSockAddr(struct sockaddr_in tsi){
     send_addr.SetSockAddr(tsi);
+}
+
+void SocketTCPClient::Close(void){
+    close(client_sfd);
+}
+
+ssize_t SocketTCPCServer::RecvRAW_SM(char **p_rdt, Addr &taddr){
+    ssize_t tmp_bdtas = recv(data_sfd, buff, BUFSIZ, 0);
+    if (tmp_bdtas > 0) {
+        *p_rdt = (char *)malloc(tmp_bdtas);
+        memcpy(*p_rdt, buff, tmp_bdtas);
+    }
+    return tmp_bdtas;
+}
+
+ssize_t SocketTCPCServer::RecvRAW(char **p_rdt, Addr &taddr){
+    ssize_t bdtas = 0 ,tmp_bdtas;
+    *p_rdt = nullptr;
+    while ((tmp_bdtas = recv(data_sfd, buff, BUFSIZ, 0)) > 0) {
+        if(*p_rdt == nullptr){
+            *p_rdt = (char *)malloc(tmp_bdtas);
+            memcpy(*p_rdt, buff, tmp_bdtas);
+        }
+        else{
+            *p_rdt = (char *)realloc(*p_rdt, bdtas + tmp_bdtas);
+            memcpy(*p_rdt + bdtas, buff, tmp_bdtas);
+        }
+        bdtas += tmp_bdtas;
+    }
+    return bdtas;
+}
+
+void SocketTCPCServer::Accept(void ){
+    data_sfd = accept(server_sfd, client_addr.RawObj(), client_addr.SizeP());
+}
+
+
+void SocketTCPClient::Reconnect(void){
+    client_sfd = socket(ipptl,SOCK_STREAM,0);
+    if(!~client_sfd) throw "fail to get client sfd";
+    if(!~connect(client_sfd,send_addr.RawObj(),send_addr.Size())) throw "fail to connect";
+}
+
+
+void SocketTCPCServer::CloseConnection(void){
+    close(data_sfd);
+}
+
+void SocketTCPClient::GetRespond(string &str){
+    ssize_t size = recv(client_sfd, buff, BUFSIZ, 0);
+    if(size > 0){
+        str = string(buff,size);
+    }
+    else str = "";
+}
+
+void SocketTCPCServer::SendRespond(string &str){
+    send(data_sfd, str.data(), str.size(), 0);
+}
+
+ssize_t SocketTCPClient::RecvRAW(char **p_rdt, Addr &taddr){
+    ssize_t bdtas = 0 ,tmp_bdtas;
+    *p_rdt = nullptr;
+    while ((tmp_bdtas = recv(client_sfd, buff, BUFSIZ, 0)) > 0) {
+        if(*p_rdt == nullptr){
+            *p_rdt = (char *)malloc(tmp_bdtas);
+            memcpy(*p_rdt, buff, tmp_bdtas);
+        }
+        else{
+            *p_rdt = (char *)realloc(*p_rdt, bdtas + tmp_bdtas);
+            memcpy(*p_rdt + bdtas, buff, tmp_bdtas);
+        }
+        bdtas += tmp_bdtas;
+        printf("Get Data Size %lu",tmp_bdtas);
+    }
+    return bdtas;
+}
+
+
+Addr &SocketTCPClient::GetAddr(void){
+    return send_addr;
+}
+
+void SocketTCPClient::SetAddr(Addr &taddr){
+    send_addr = taddr;
+}
+
+Addr &SocketTCPCServer::GetAddr(void){
+    return server_addr;
+}
+Addr &SocketTCPCServer::GetClientAddr(void){
+    return client_addr;
+}
+
+
+int SocketTCPCServer::GetDataSFD(void){
+    return data_sfd;
+}
+
+void SocketTCPCServer::SetDataSFD(int tdata_sfd){
+    data_sfd = tdata_sfd;
+}
+
+void SocketTCPCServer::SetClientAddr(Addr &caddr){
+    client_addr = caddr;
 }

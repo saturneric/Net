@@ -217,7 +217,7 @@ int server(string instruct, vector<string> &configs, vector<string> &lconfigs, v
             setServerClockForSquare(&nsvr, 3);
         }
     }
-    while(1) usleep(10000);
+    while(1) sleep(1);
     return 0;
 }
 
@@ -319,7 +319,7 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
     
 //    如果本地没有主广场服务器的公钥
     if(if_null){
-        nclt.NewRequest(&preq, msqe_ip, msqe_port, "client-square request", "request for public key");
+        nclt.NewRequest(&preq, msqe_ip, msqe_port, "public request", "request for public key");
         nclt.NewRequestListener(preq, 30, psql, getSQEPublicKey);
         if_wait = 1;
         while (if_wait == 1) {
@@ -349,7 +349,7 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
     aes_key256 naeskey;
     nclt.SetAESKey(naeskey);
     
-    string reqstr = " {\"key\":null, \"name\":null, \"tag\":null, \"sqe_key\":null}";
+    string reqstr = " {\"key\":null, \"name\":null, \"tag\":null, \"sqe_key\":null, \"listen_port\": null,\"listen_ip\":null}";
     
     Document reqdata;
     if(reqdata.Parse(reqstr.data()).HasParseError()) throw "fail to parse into json";
@@ -365,6 +365,10 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
     reqdata["name"].SetString(nclt.name.data(),(uint32_t)nclt.name.size());
     reqdata["tag"].SetString(nclt.tag.data(),(uint32_t)nclt.name.size());
     reqdata["sqe_key"].SetString(nclt.sqe_key.data(), (uint32_t)nclt.sqe_key.size());
+    reqdata["listen_port"].SetInt(9053);
+    string ip = inet_ntoa(nclt.server_cnt->GetAddr().Obj()->sin_addr);
+
+    reqdata["listen_ip"].SetString(ip.data(),(uint32_t)ip.size());
     
     StringBuffer strbuff;
     Writer<StringBuffer> writer(strbuff);
@@ -372,13 +376,34 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
     string json_str = strbuff.GetString();
     printf("JSON: %s\n",json_str.data());
 //    已获得主广场服务器的密钥，进行启动客户端守护进程前的准备工作
-    nclt.NewRequest(&preq, msqe_ip, msqe_port, "client-register request", json_str, true);
-    nclt.NewRequestListener(preq, 9999, psql,registerSQECallback);
+    nclt.NewRequest(&preq, msqe_ip, msqe_port, "private request", json_str, true);
+    nclt.NewRequestListener(preq, 99, psql,registerSQECallback);
     
     if_wait = 1;
-    while (1) {
-        sleep(10);
+    while (if_wait) {
+        sleep(1);
     }
-    
+    if (!if_wait) {
+//        成功注册
+        printf("Wait for server to connect\n");
+        nclt.server_cnt = new SocketTCPCServer(9053);
+        nclt.server_cnt->Listen();
+        
+        while (1) {
+            nclt.server_cnt->Accept();
+            printf("Get connection request from server.\n");
+            connection_listener *pncl = new connection_listener();
+            pncl->client_addr = nclt.server_cnt->GetClientAddr();
+            pncl->data_sfd = nclt.server_cnt->GetDataSFD();
+            pncl->key = nclt.post_key;
+            pthread_create(&pncl->pid, NULL, connectionDeamon, pncl);
+            
+        }
+        
+    }
     return 0;
 }
+
+
+
+

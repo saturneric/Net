@@ -57,18 +57,19 @@ struct request {
 struct encrypt_post{
 //    注册客户端id
     uint64_t client_id;
-//    目标ip
-    string ip;
-//    目标端口
-    int port;
+//    目标地址信息
+    Addr t_addr;
 //    匹配id
     uint64_t p_id;
 //    类型
     uint32_t type;
 //    内容
-    Byte *buff;
+    Byte *buff = nullptr;
 //    内容长度
-    uint32_t buff_size;
+    uint32_t buff_size = 0;
+    void SetBuff(Byte *buff, uint32_t size);
+    void FreeBuff(void);
+    ~encrypt_post(void);
 };
 
 //回复数据包
@@ -141,8 +142,13 @@ struct server_info{
 
 struct aes_key256{
     uint64_t key[4];
+    uint64_t iv[4];
 //    生成新的随机密钥
     aes_key256();
+
+    void MakeIV(void);
+//    获得初始化向量
+    const uint8_t *GetIV(void);
     const uint8_t *GetKey(void);
     
 };
@@ -191,7 +197,30 @@ struct client_register{
     aes_key256 key;
     string name;
     string tag;
-    uint32_t clicks;
+//    服务器资源租用时间
+    uint32_t click;
+//    认证口令
+    uint64_t passwd;
+//    目标地址信息
+    Addr t_addr;
+//    守护线程ID
+    pthread_t tid;
+};
+
+struct client_listen{
+    bool if_get;
+    bool if_connected = true;
+    pthread_t pid;
+    SocketTCPClient *ptcps;
+    encrypt_post *pcryp;
+    client_register *pcltr;
+};
+
+struct connection_listener{
+    int data_sfd;
+    Addr client_addr;
+    aes_key256 key;
+    pthread_t pid;
 };
 
 //通用服务器类
@@ -201,6 +230,7 @@ protected:
     list<packet *> packets_in;
 //    缓存带标签的二进制串管理结构
     list<raw_data *> rawdata_in;
+    map<uint64_t, client_register *> rids;
 //    输出的数据包列表
     list<packet *> packets_out;
     map<uint64_t,box_listener *> boxls;
@@ -285,7 +315,10 @@ public:
     static void Request2Packet(packet &pkt, request &req);
     static void Respond2Packet(packet &pkt, respond &res);
     static void Packet2Respond(packet &pkt, respond &res);
-    
+    static void BuildBeatsRawData(raw_data &rwd);
+    static void BuildSmallRawData(raw_data &rwd, const char *info);
+    static void Post2SignedRawData(void *buff, uint32_t buff_size, const char *info, aes_key256 &key, raw_data &rw);
+    static void SignedRawData2Post(raw_data &rwd, encrypt_post &pst, aes_key256 &key);
     static void Post2Packet(packet &pkt, encrypt_post &pst, aes_key256 &key);
     static void Packet2Post(packet &pkt, encrypt_post &pst, aes_key256 &key);
     static void GetPostInfo(packet &pkt, encrypt_post &pst);
@@ -295,12 +328,16 @@ public:
 class Client{
 //    请求监听列表
     list<request_listener *> req_lst;
+    list<raw_data *> rwd_lst;
+    
 //    回复处理列表
     list<respond *> res_lst;
 //    请求监听端口
     uint32_t listen_port;
     SocketUDPServer socket;
     SocketUDPClient send_socket;
+//    与服务器建立的稳定链接
+    SocketTCPCServer *server_cnt;
 //    广场服务器通信公钥
     public_key_class sqe_pbc;
 //    报文密钥

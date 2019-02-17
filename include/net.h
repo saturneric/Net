@@ -45,7 +45,7 @@ public:
 
 //服务器套接字类
 class SocketServer{
-protected:
+public :
 //    套接字操作柄
     int server_sfd;
 //    服务器IP及端口管理类
@@ -54,7 +54,6 @@ protected:
     int ipptl;
 //    临时缓冲区
     char buff[BUFSIZ];
-public :
     SocketServer(int port,bool ipv4){
         server_addr.SetPort(port);
         if(ipv4){
@@ -65,6 +64,9 @@ public :
             ipptl = AF_INET6;
             server_addr.SetIpv6();
         }
+    }
+    SocketServer(void){
+        server_sfd = -1;
     }
     ~SocketServer(){
         //close(server_sfd);
@@ -77,7 +79,7 @@ public :
 
 //客户端套接字类
 class SocketClient{
-protected:
+public :
 //    目标服务器IP地址及端口管理类
     Addr send_addr;
 //    套接字操作柄
@@ -86,10 +88,21 @@ protected:
     int ipptl;
 //    临时缓冲区
     char buff[BUFSIZ];
-public :
+    
     SocketClient(string ip,int port,bool ipv4){
         send_addr.SetIP(ip);
         send_addr.SetPort(port);
+        if(ipv4){
+            ipptl = PF_INET;
+            send_addr.SetIpv4();
+        }
+        else{
+            ipptl = PF_INET6;
+            send_addr.SetIpv6();
+        }
+    }
+    SocketClient(sockaddr_in &taddr,bool ipv4){
+        send_addr.SetSockAddr(taddr);
         if(ipv4){
             ipptl = PF_INET;
             send_addr.SetIpv4();
@@ -105,7 +118,7 @@ public :
 //    接受储存简单字符串
     virtual void Send(string buff) = 0;
 //    接受储存二进制串
-    virtual void SendRAW(char *buff, unsigned long size) = 0;
+    virtual ssize_t SendRAW(char *buff, unsigned long size) = 0;
 //    重新设置发送目的地的端口
     void SetSendPort(int port);
 //    重新设置发送目的地的IP地址
@@ -124,8 +137,10 @@ public :
 //TCP服务器套接字类
 class SocketTCPCServer:public SocketServer{
 //    连接操作柄
-    int ctn_sfd;
+    int data_sfd;
     void (*func)(class Socket &,int ,Addr);
+    Addr client_addr;
+    
 public:
     SocketTCPCServer(int port):SocketServer(port,true){
 //        获得套接字操作柄
@@ -133,20 +148,34 @@ public:
         if(!~server_sfd) throw "fail to get server sfd";
 //        绑定IP地址与端口
         if(!~bind(server_sfd, server_addr.RawObj(), server_addr.Size())) throw "fail to bind";
+//        设置接受信息非阻塞
+    }
+    SocketTCPCServer(void):SocketServer(){
+        data_sfd = -1;
     }
 //    监听端口
-    void Listen(int connection, void (*func)(class Socket &,int ,Addr) = NULL);
+    int Listen(void);
 //    接受连接
     void Accept(void);
+    Addr &GetAddr(void);
+    Addr &GetClientAddr(void);
+    int GetDataSFD(void);
+    void SetDataSFD(int tdata_sfd);
+    void SetClientAddr(Addr &caddr);
+    void CloseConnection(void);
 //    接收简单字符串数据
     ssize_t Recv(string &str);
+//    接受储存二进制串
+    ssize_t RecvRAW(char **p_rdt, Addr &taddr);
+    ssize_t RecvRAW_SM(char **p_rdt, Addr &taddr);
+    void SendRespond(string &str);
 };
 
 //TCP客户端套接字类
 class SocketTCPClient:public SocketClient{
+public:
 //    连接操作柄
     int ctn_sfd;
-public:
     SocketTCPClient(string ip,int port):SocketClient(ip,port,true){
 //        获得套接字操作柄
         client_sfd = socket(ipptl,SOCK_STREAM,0);
@@ -154,8 +183,25 @@ public:
 //        建立TCP连接
         if(!~connect(client_sfd,send_addr.RawObj(),send_addr.Size())) throw "fail to connect";
     }
+    SocketTCPClient(sockaddr_in &taddr):SocketClient(taddr,true){
+//        获得套接字操作柄
+        client_sfd = socket(ipptl,SOCK_STREAM,0);
+        if(!~client_sfd) throw "fail to get client sfd";
+        //send_addr.SetIP("127.0.0.1");
+        //send_addr.SetPort(9053);
+//        建立TCP连接
+        if(connect(client_sfd,send_addr.RawObj(),send_addr.Size()) < 0) throw "fail to connect";
+    }
 //    发送简单字符串数据
     void Send(string str);
+    void Reconnect(void);
+    Addr &GetAddr(void);
+    void SetAddr(Addr &);
+    ssize_t SendRAW(char *buff, unsigned long size);
+    ssize_t RecvRAW(char **p_rdt, Addr &taddr);
+    
+    void GetRespond(string &str);
+    void Close(void);
 };
 
 
@@ -173,6 +219,10 @@ public:
         if(!~server_sfd) throw "fail to get server sfd";
 //        绑定IP地址与端口
         if(!~bind(server_sfd, server_addr.RawObj(), server_addr.Size())) throw "fail to bind";
+        
+//        设置非阻塞
+        //int flags = fcntl(server_sfd, F_GETFL, 0);
+        //fcntl(server_sfd, F_SETFL, flags | O_NONBLOCK);
     }
 //    接受储存简单字符串信息的数据包
     ssize_t Recv(string &str);
@@ -193,7 +243,7 @@ public:
 //    发送简单字符串数据
     void Send(string buff);
 //    发送一个带有二进制原始信息的数据包
-    void SendRAW(char *buff, unsigned long size);
+    ssize_t SendRAW(char *buff, unsigned long size);
 };
 
 #endif /* net_h */

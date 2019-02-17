@@ -50,5 +50,6 @@ int set(string instruct, vector<string> &configs, vector<string> &lconfigs, vect
 bool config_search(vector<string> &configs,string tfg);
 void getSQEPublicKey(respond *pres,void *args);
 void registerSQECallback(respond *pres,void *args);
+void* connectionDeamon(void *args);
 
 #endif /* instruct_h */

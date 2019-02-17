@@ -44,7 +44,6 @@ void *clientRespondDeamon(void *pvclt){
     do{
         tlen = pclient->socket.RecvRAW(&str,taddr);
         if(tlen > 0){
-            
 //            记录有效数据包
             if(Server::CheckRawMsg(str, tlen)){
                 

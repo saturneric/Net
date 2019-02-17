@@ -695,7 +695,7 @@ void SQEServer::ProcessRequset(void){
     for(auto &preq : req_list){
         if(preq == nullptr) continue;
         if(prm-- == 0) break;
-        if(preq->type == "client-square request"){
+        if(preq->type == "public request"){
             if(preq->data == "request for public key"){
                 respond *pnr = new respond();
                 pnr->r_id = preq->r_id;
@@ -711,11 +711,15 @@ void SQEServer::ProcessRequset(void){
                 pthread_mutex_unlock(&mutex_sndpkt);
             }
         }
-        else if(preq->type == "client-register request"){
+        else if(preq->type == "private request"){
 //            解析JSON结构
             preq->req_doc.Parse(preq->data.data());
             Document &jdoc = preq->req_doc;
-            if(1){
+            auto cltr = rids.find(preq->r_id);
+            if(cltr != rids.end()){
+                
+            }
+            else if(1){
                 client_register *pclr = new client_register();
                 pclr->client_id = rand64();
                 uint8_t *pkey = (uint8_t *) pclr->key.key;
@@ -725,11 +729,47 @@ void SQEServer::ProcessRequset(void){
                 
                 pclr->name = jdoc["name"].GetString();
                 pclr->tag = jdoc["tag"].GetString();
-                if(pthread_mutex_lock(&mutex_cltreg) != 0) throw "lock error";
+                pclr->t_addr = preq->t_addr;
+                int port = jdoc["listen_port"].GetInt();
+                pclr->t_addr.SetIP(jdoc["listen_ip"].GetString());
+                pclr->t_addr.SetPort(port);
+                pclr->passwd = rand64();
+//                联络进程生命周期
+                pclr->click = 9999;
+                //if(pthread_mutex_lock(&mutex_cltreg) != 0) throw "lock error";
                 client_lst.insert({pclr->client_id,pclr});
-                pthread_mutex_unlock(&mutex_cltreg);
+                //pthread_mutex_unlock(&mutex_cltreg);
+                
+                printf("Ready to connect client %s[%s].\n",pclr->name.data(),pclr->tag.data());
+//                注册客户端联络守护进程
+                clock_register *pncr = new clock_register();
+                pncr->if_thread = true;
+                pncr->if_reset = false;
+                pncr->click = 64;
+                pncr->rawclick = 0;
+                pncr->func = clientWaitDeamon;
+                pncr->arg = (void *)pclr;
+                newClock(pncr);
+                rids.insert({preq->r_id,pclr});
+                
             }
+//            构建回复包
+            respond *pnr = new respond();
+            pnr->r_id = preq->r_id;
+            string res_data = "{\"status\":\"ok\"}";
+            pnr->SetBuff((Byte *)res_data.data(), (uint32_t)res_data.size());
             
+            pnr->type = "register respond";
+            pnr->t_addr = preq->t_addr;
+            pnr->t_addr.SetPort(preq->recv_port);
+            packet *pnpkt = new packet();
+            Respond2Packet(*pnpkt, *pnr);
+            delete pnr;
+            
+//            将标准数据包添加到发送列表
+            if(pthread_mutex_lock(&mutex_sndpkt) != 0) throw "lock error";
+            packets_out.push_back(pnpkt);
+            pthread_mutex_unlock(&mutex_sndpkt);
             
         }
         delete preq;
@@ -811,45 +851,61 @@ const uint8_t *aes_key256::GetKey(void){
 
 void SQEServer::Post2Packet(packet &pkt, encrypt_post &pst, aes_key256 &key){
     pkt.type = ENCRYPT_POST_TYPE;
-    Addr taddr(pst.ip,pst.port);
-    pkt.address = *taddr.Obj();
+    pkt.address = *(struct sockaddr_in *)pst.t_addr.Obj();
     pkt.AddBuff(&pst.client_id, sizeof(uint64_t));//0
     pkt.AddBuff(&pst.p_id, sizeof(uint64_t));//1
-    pkt.AddBuff((const void *)pst.ip.data(), (uint32_t)pst.ip.size());//2
-    pkt.AddBuff((void *)&pst.port, sizeof(uint32_t));//3
+    pkt.AddBuff((struct sockaddr_in *)pst.t_addr.Obj(), sizeof(struct sockaddr_in));//2
+    
+    
+//    加密数据
+    struct AES_ctx naes;
+    key.MakeIV();
+    AES_init_ctx_iv(&naes, key.GetKey(),key.GetIV());
+    
+//    加密数据填充对齐
+    if(pst.buff_size % 16){
+        Byte *t_data = (Byte *) malloc((pst.buff_size/16 + 1) * 16);
+        memset(t_data, 0, (pst.buff_size/16 + 1) * 16);
+        memcpy(t_data, pst.buff, pst.buff_size);
+        pst.buff_size = (pst.buff_size/16 + 1) * 16;
+        free(pst.buff);
+        pst.buff = t_data;
+        
+    }
+    
     string MD5_HEX;
     MD5EncryptEasy(MD5_HEX, pst.buff, pst.buff_size);
     
-//    加密数据
-    AES_ctx naes;
-    AES_init_ctx(&naes, key.GetKey());
     AES_CBC_encrypt_buffer(&naes, (uint8_t *)pst.buff, pst.buff_size);
-    pkt.AddBuff(pst.buff, pst.buff_size);//4
-    pkt.AddBuff((void *)MD5_HEX.data(), (uint32_t)MD5_HEX.size());//5
+    pkt.AddBuff(pst.buff, pst.buff_size);//3
+    pkt.AddBuff((void *)MD5_HEX.data(), 32);//4
+    pkt.AddBuff((void *)&pst.type, sizeof(uint32_t));//5
+
 }
 
 void SQEServer::GetPostInfo(packet &pkt, encrypt_post &pst){
     pst.client_id = *(uint64_t *)pkt.buffs[0].second;
     pst.p_id = *(uint64_t *)pkt.buffs[1].second;
-    pst.ip = (const char *)pkt.buffs[2].second;
-    pst.port = *(uint32_t *)pkt.buffs[3].second;
+    pst.t_addr = Addr(*(struct sockaddr_in *)pkt.buffs[2].second);
 }
 
 void SQEServer::Packet2Post(packet &pkt, encrypt_post &pst, aes_key256 &key){
     pst.client_id = *(uint64_t *)pkt.buffs[0].second;
     pst.p_id = *(uint64_t *)pkt.buffs[1].second;
-    pst.ip = (const char *)pkt.buffs[2].second;
-    pst.port = *(uint32_t *)pkt.buffs[3].second;
-    pst.buff_size = pkt.buffs[4].first;
+    pst.t_addr = Addr(*(struct sockaddr_in *)pkt.buffs[2].second);
+    pst.type = *(uint32_t *)pkt.buffs[5].second;
+    pst.buff_size = pkt.buffs[3].first;
     string TMD5,MD5;
-    MD5 = (const char *)pkt.buffs[5].second;
+    TMD5 = string((const char *)pkt.buffs[4].second,32);
     uint8_t *t_data = (uint8_t *)malloc(pst.buff_size);
-    memcpy(t_data, pkt.buffs[4].second, pst.buff_size);
+    memcpy(t_data, pkt.buffs[3].second, pst.buff_size);
 //    解密数据
-    AES_ctx naes;
-    AES_init_ctx(&naes, key.GetKey());
+    struct AES_ctx naes;
+    key.MakeIV();
+    AES_init_ctx_iv(&naes, key.GetKey(),key.GetIV());
     AES_CBC_decrypt_buffer(&naes, t_data, pst.buff_size);
     MD5EncryptEasy(MD5, (Byte *)t_data, pst.buff_size);
+    
 //    校验数据
     if(TMD5 != MD5) throw "key error";
     pst.buff = (Byte *)t_data;
@@ -873,6 +929,12 @@ void net_box::set(void *pbuff, uint16_t pbsize){
     data = (UByte *)malloc(pbsize);
     data_size = pbsize;
     memcpy(data, pbuff, pbsize);
+}
+
+void encrypt_post::SetBuff(Byte *pbuff, uint32_t size){
+    buff = (Byte *)malloc(size);
+    buff_size = size;
+    memcpy(buff, pbuff, buff_size);
 }
 
 void net_box::build(void){
@@ -940,4 +1002,239 @@ void box_listener::TogtRawData(raw_data &trdt){
         Server::ProcessSignedRawMsg(pbyt, msg_size, trdt);
     }
     free(pbyt);
+}
+
+
+encrypt_post::~encrypt_post(){
+    if(buff != nullptr) free(buff);
+}
+
+bool tryConnection(SocketTCPClient **pcnt_sock,client_register *pclr){
+    try{
+        *pcnt_sock = new SocketTCPClient (*pclr->t_addr.Obj());
+    }
+    catch(const char *error){
+        if(!strcmp(error, "fail to connect")){
+            printf("Fail To Connect Client: %s[%s]\n",pclr->name.data(),pclr->tag.data());
+            return false;
+        }
+        
+    }
+    return true;
+}
+
+//发送心跳包
+void *clientChecker(void *args){
+    client_listen *pcltl = (client_listen *)args;
+    raw_data *pnrwd = new raw_data();
+    SQEServer::BuildBeatsRawData(*pnrwd);
+    SocketTCPClient nstcpc(*pcltl->ptcps->GetAddr().Obj());
+//    说明连接类型
+    raw_data nsrwd;
+    SQEServer::BuildSmallRawData(nsrwd, "LCNT");
+    nstcpc.SendRAW(nsrwd.msg, nsrwd.msg_size);
+    Server::freeRawdataServer(nsrwd);
+    while (1) {
+        if(pcltl->if_connected == false) break;
+        if(nstcpc.SendRAW(pnrwd->msg, pnrwd->msg_size) < 0){
+            printf("Lose Connection %s[%s]\n",pcltl->pcltr->name.data(),pcltl->pcltr->tag.data());
+            pcltl->if_connected = false;
+            break;
+        }
+        else{
+            sleep(3);
+        }
+    }
+    pthread_exit(NULL);
+}
+
+void *clientListener(void *args){
+    client_listen *pcltl = (client_listen *)args;
+    char *buff;
+    Addr taddr;
+    while(1){
+//        如果连接断开
+        if(pcltl->if_connected == false) break;
+        ssize_t size = pcltl->ptcps->RecvRAW(&buff, taddr);
+        if(size > 0){
+            if(Server::CheckRawMsg(buff, size)){
+                raw_data nrwd;
+                Server::ProcessSignedRawMsg(buff, size, nrwd);
+                if(!memcmp(&nrwd.info,"ECYP",sizeof(uint32_t))){
+                    packet npkt;
+                    encrypt_post necryp;
+                    Server::Rawdata2Packet(npkt, nrwd);
+                    SQEServer::Packet2Post(npkt, necryp, pcltl->pcltr->key);
+                    Server::freePcaketServer(npkt);
+                    if(!memcmp(&necryp.type,"JIFO",sizeof(uint32_t))){
+                        Document ndoc;
+                        ndoc.Parse(string(necryp.buff,necryp.buff_size).data());
+                        printf("Client %s[%s] Send Encrypt Post(JSON).\n",pcltl->pcltr->name.data(),pcltl->pcltr->tag.data());
+                        uint64_t pwd = ndoc["pwdmd5"].GetInt64();
+                        if(pwd == pcltl->pcltr->passwd){
+                            printf("Password Check Passed.\n");
+                        }
+                        else{
+                            printf("Wrong Password.\n");
+                        }
+                    }
+                    //necryp.FreeBuff();
+                }
+                Server::freeRawdataServer(nrwd);
+            }
+            free(buff);
+        }
+    }
+    pthread_exit(NULL);
+}
+
+void *clientWaitDeamon(void *pvclt){
+    clock_thread_info *pcti = (clock_thread_info *) pvclt;
+    client_register *pclr = (client_register *)pcti->args;
+    SocketTCPClient *pcnt_sock = nullptr;
+    bool if_success = false;
+    printf("Connecting client %s[%s].\n",pclr->name.data(),pclr->tag.data());
+    for(int i = 0; i < 8; i++){
+        if(tryConnection(&pcnt_sock, pclr)){
+            if_success = true;
+            break;
+        }
+        else printf("Retry...\n");
+        sleep(1);
+    }
+    if(!if_success){
+        printf("Fail To Get Register.\n");
+        delete pclr;
+        clockThreadFinish(pcti->tid);
+        pthread_exit(NULL);
+    }
+    
+    printf("Get Register: %s[%s]\n",pclr->name.data(),pclr->tag.data());
+//    第一报文
+    string res_type = "{\"status\":\"ok\",\"passwd\":null}";
+    Document ndoc;
+    
+    ndoc.Parse(res_type.data());
+    uint8_t *ppidx = (uint8_t *)&pclr->passwd;
+    ndoc["passwd"].SetArray();
+    Document::AllocatorType &allocator = ndoc.GetAllocator();
+    for(int i = 0; i < 8; i++){
+        ndoc["passwd"].PushBack(ppidx[i], allocator);
+    }
+    StringBuffer sb;
+    Writer<StringBuffer> writer(sb);
+    ndoc.Accept(writer);
+    encrypt_post *ncryp = new encrypt_post();
+    string send_data = sb.GetString();
+//    初始化端对端加密报文
+    ncryp->SetBuff((Byte *)send_data.data(),(uint32_t)send_data.size());
+    ncryp->client_id = pclr->client_id;
+    ncryp->p_id = rand64();
+    ncryp->t_addr = pclr->t_addr;
+    memcpy(&ncryp->type, "JRES", sizeof(uint32_t));
+    
+    packet *nppkt = new packet();
+    SQEServer::Post2Packet(*nppkt, *ncryp, pclr->key);
+    raw_data *pnrwd = new raw_data(), nsrwd;
+    Server::Packet2Rawdata(*nppkt, *pnrwd);
+    Server::SignedRawdata(pnrwd, "ECYP");
+//    说明连接类型
+    SQEServer::BuildSmallRawData(nsrwd, "SCNT");
+    pcnt_sock->SendRAW(nsrwd.msg, nsrwd.msg_size);
+    Server::freeRawdataServer(nsrwd);
+    
+    pcnt_sock->SendRAW(pnrwd->msg, pnrwd->msg_size);
+    pcnt_sock->Close();
+    
+    client_listen *pcltl = new client_listen();
+    pcltl->pcltr = pclr;
+    pcltl->if_get  = false;
+    pcltl->pid = 0;
+    pthread_t bt,lt;
+    pcltl->pcryp = nullptr;
+    pcltl->ptcps = pcnt_sock;
+    
+    pthread_create(&lt, NULL, clientListener, pcltl);
+    pthread_create(&bt, NULL, clientChecker, pcltl);
+    while (1 && pclr->click-- > 0) {
+        sleep(1);
+        if(pcltl->if_connected == false){
+            printf("Register lost, start to separate.\n");
+            break;
+        }
+        try{
+            //pcnt_sock->Reconnect();
+            //pcnt_sock->Close();
+        }
+        catch(const char *error){
+            if(!strcmp(error, "fail to connect")){
+                printf("Lose Register: %s[%s]\n",pclr->name.data(),pclr->tag.data());
+                break;
+            }
+        }
+    }
+    
+    delete pclr;
+    delete nppkt;
+    delete pnrwd;
+    delete ncryp;
+//    等待接收线程返回
+    pthread_join(lt, NULL);
+    pthread_join(bt, NULL);
+//pcnt_sock->Close();
+    
+    clockThreadFinish(pcti->tid);
+    pthread_exit(NULL);
+}
+
+void encrypt_post::FreeBuff(void){
+    if(buff != nullptr){
+        free(buff);
+    }
+}
+
+
+void aes_key256::MakeIV(void){
+    iv[0] = key[2];
+    iv[1] = key[0];
+    iv[2] = key[3];
+    iv[3] = key[1];
+}
+
+const uint8_t * aes_key256::GetIV(void){
+    return (const uint8_t *)iv;
+}
+
+
+void SQEServer::BuildBeatsRawData(raw_data &rwd){
+    rwd.setData("Beat");
+    SignedRawdata(&rwd, "BEAT");
+}
+
+void SQEServer::Post2SignedRawData(void *buff, uint32_t buff_size, const char *info, aes_key256 &key, raw_data &rwd){
+    encrypt_post *pecryp = new encrypt_post();
+    pecryp->SetBuff((Byte *)buff, buff_size);
+    memcpy(&pecryp->type,info,sizeof(uint32_t));
+    pecryp->client_id = 0;
+    pecryp->p_id = rand64();
+    packet *pnpkt = new packet();
+    Post2Packet(*pnpkt, *pecryp, key);
+    Packet2Rawdata(*pnpkt, rwd);
+    SignedRawdata(&rwd, "ECYP");
+    delete pnpkt;
+    delete pecryp;
+}
+
+void SQEServer::SignedRawData2Post(raw_data &rwd, encrypt_post &pst, aes_key256 &key){
+    packet *pnpkt = new packet();
+    if(!memcmp(&rwd.info, "ECYP", sizeof(uint32_t))){
+        Rawdata2Packet(*pnpkt, rwd);
+        Packet2Post(*pnpkt, pst, key);
+    }
+    delete pnpkt;
+}
+
+void SQEServer::BuildSmallRawData(raw_data &rwd, const char *info){
+    rwd.setData("");
+    SignedRawdata(&rwd, info);
 }
