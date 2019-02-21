@@ -1052,9 +1052,17 @@ void *clientListener(void *args){
     client_listen *pcltl = (client_listen *)args;
     char *buff;
     Addr taddr;
+    printf("Start listening to client.\n");
     while(1){
 //        如果连接断开
         if(pcltl->if_connected == false) break;
+//        建立新的监听连接
+        pcltl->ptcps->Reconnect();
+//        说明连接类型
+        raw_data nsrwd;
+        SQEServer::BuildSmallRawData(nsrwd, "CNTL");
+        pcltl->ptcps->SendRAW(nsrwd.msg, nsrwd.msg_size);
+        Server::freeRawdataServer(nsrwd);
         ssize_t size = pcltl->ptcps->RecvRAW(&buff, taddr);
         if(size > 0){
             if(Server::CheckRawMsg(buff, size)){
@@ -1110,7 +1118,7 @@ void *clientWaitDeamon(void *pvclt){
     }
     
     printf("Get Register: %s[%s]\n",pclr->name.data(),pclr->tag.data());
-//    第一报文
+//    注册信息报文
     string res_type = "{\"status\":\"ok\",\"passwd\":null}";
     Document ndoc;
     

@@ -66,10 +66,10 @@ void registerSQECallback(respond *pres,void *args){
     }
 }
 
-void* connectionDeamon(void *args){
+void *connectionDeamon(void *args){
     connection_listener * pcntl = (connection_listener *)args;
     string first_data;
-    printf("Start Listen Connection From Server.\n");
+    //printf("Start Listen Connection From Server.\n");
     char *buff = nullptr;
     Addr t_addr;
     ssize_t size = 0;
@@ -91,11 +91,19 @@ void* connectionDeamon(void *args){
             if_sm = true;
             printf("Short Connection From Server\n");
         }
+        else if(!memcmp(&pnrwd->info, "CNTL", sizeof(uint32_t))){
+            if_sm = true;
+            //printf("Listen Connection From Server\n");
+            
+            ntcps.CloseConnection();
+            pthread_exit(NULL);
+        }
         else{
             printf("Connection illegal\n");
             delete pnrwd;
             pthread_exit(NULL);
         }
+        
     }
     else{
         printf("Connection illegal\n");
@@ -126,13 +134,17 @@ void* connectionDeamon(void *args){
                     }
                 }
                 else if(!memcmp(&pnrwd->info, "BEAT", sizeof(uint32_t))){
-                    printf("Connection Beated.\n");
+                    //printf("Connection Beated.\n");
+                }
+                else if(!memcmp(&pnrwd->info, "SCMD", sizeof(uint32_t))){
+//                    来自管理员的命令
+                    
                 }
                 Server::freeRawdataServer(*pnrwd);
                 Server::freePcaketServer(*nppkt);
             }
             else if(size < 0){
-                printf("Lost Connection From Server.\n");
+                //printf("Lost Connection From Server.\n");
                 delete pnrwd;
                 delete pncryp;
                 delete nppkt;
@@ -144,8 +156,8 @@ void* connectionDeamon(void *args){
         delete pnrwd;
         delete pncryp;
         delete nppkt;
-        
+        usleep(10000);
     }
+    
     pthread_exit(NULL);
 }
-

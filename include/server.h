@@ -329,7 +329,7 @@ class Client{
 //    请求监听列表
     list<request_listener *> req_lst;
     list<raw_data *> rwd_lst;
-    
+    list<encrypt_post *> ecryp_lst;
 //    回复处理列表
     list<respond *> res_lst;
 //    请求监听端口

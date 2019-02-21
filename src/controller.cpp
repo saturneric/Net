@@ -217,7 +217,7 @@ int server(string instruct, vector<string> &configs, vector<string> &lconfigs, v
             setServerClockForSquare(&nsvr, 3);
         }
     }
-    while(1) sleep(1);
+    while(1) usleep(1000000);
     return 0;
 }
 
@@ -297,6 +297,14 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
     
 //    建立客户端
     Client nclt(9050);
+    bool if_setip = false;
+    string set_ip;
+    
+    if(config_search(configs, "-p")){
+        set_ip = targets[0];
+        printf("Set IP: %s\n",set_ip.data());
+        if_setip = true;
+    }
     setClientClock(&nclt, 3);
     request *preq;
     
@@ -366,7 +374,10 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
     reqdata["tag"].SetString(nclt.tag.data(),(uint32_t)nclt.name.size());
     reqdata["sqe_key"].SetString(nclt.sqe_key.data(), (uint32_t)nclt.sqe_key.size());
     reqdata["listen_port"].SetInt(9053);
-    string ip = inet_ntoa(nclt.server_cnt->GetAddr().Obj()->sin_addr);
+    
+    string ip;
+    if(if_setip) ip = set_ip;
+    else ip = inet_ntoa(nclt.server_cnt->GetAddr().Obj()->sin_addr);
 
     reqdata["listen_ip"].SetString(ip.data(),(uint32_t)ip.size());
     
@@ -386,18 +397,57 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
     if (!if_wait) {
 //        成功注册
         printf("Wait for server to connect\n");
-        nclt.server_cnt = new SocketTCPCServer(9053);
-        nclt.server_cnt->Listen();
+//        创建守护进程
         
-        while (1) {
-            nclt.server_cnt->Accept();
-            printf("Get connection request from server.\n");
-            connection_listener *pncl = new connection_listener();
-            pncl->client_addr = nclt.server_cnt->GetClientAddr();
-            pncl->data_sfd = nclt.server_cnt->GetDataSFD();
-            pncl->key = nclt.post_key;
-            pthread_create(&pncl->pid, NULL, connectionDeamon, pncl);
-            
+        int shmid = shmget((key_t)9058, 1024, 0666|IPC_CREAT);
+        if(shmid == -1){
+            printf("SHMAT Failed.\n");
+        }
+        pid_t fpid = fork();
+        if(fpid == 0){
+            printf("Client Register Deamon Has Been Created.");
+            nclt.server_cnt = new SocketTCPCServer(9053);
+            nclt.server_cnt->Listen();
+//            获得共享内存地址
+            Byte *buff = (Byte *)shmat(shmid, NULL, 0);
+            if(shmid == -1){
+                printf("SHMAT Failed.\n");
+            }
+            while (1) {
+                if(!memcmp(buff, "SEND", sizeof(uint32_t))){
+                    printf("Get Sending Raw Data\n");
+                    memset(buff, 0, sizeof(uint32_t));
+                }
+                nclt.server_cnt->Accept();
+                //printf("Get connection request from server.\n");
+                connection_listener *pncl = new connection_listener();
+                pncl->client_addr = nclt.server_cnt->GetClientAddr();
+                pncl->data_sfd = nclt.server_cnt->GetDataSFD();
+                pncl->key = nclt.post_key;
+                pthread_attr_t attr;
+                pthread_attr_init(&attr);
+                pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+                pthread_create(&pncl->pid, &attr, connectionDeamon, pncl);
+                pthread_attr_destroy(&attr);
+                usleep(1000);
+            }
+        }
+        else{
+//            父进程
+            int shmid = shmget((key_t)9058, 1024, 0666|IPC_CREAT);
+            Byte *buff = (Byte *)shmat(shmid, 0, 0);
+            printf("Net Command line: \n");
+            while (1) {
+                char cmd[1024];
+                printf(">");
+                gets(cmd);
+                string cmdstr = cmd;
+                
+                if(cmdstr == "send"){
+                    memcpy(buff, "SEND", sizeof(uint32_t));
+                }
+                
+            }
         }
         
     }
