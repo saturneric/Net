@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
         
         while (1) {
             nclt.NewRequest(&preq, "127.0.0.1", 9048, "client-square request", "request for public key");
-            nclt.NewRequestListener(preq, 10, getSQEPublicKey);
+            //nclt.NewRequestListener(preq, 10, getSQEPublicKey);
             sleep(10000);
         }
         

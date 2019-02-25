@@ -267,7 +267,6 @@ class Map: public Cpt{
 
 //proj文件管理类
 class Proj:public setting_file{
-    friend Proj;
 //    计算工程所在的目录
     string proj_path;
 //    计算工程描述文件名

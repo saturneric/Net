@@ -41,3 +41,4 @@ PCS
 *.pbxproj
 *.pbxproj
 Net.xcodeproj/project.pbxproj
+Net/

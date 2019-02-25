@@ -440,7 +440,7 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
             while (1) {
                 char cmd[1024];
                 printf(">");
-                gets(cmd);
+				scanf("%s", cmd);
                 string cmdstr = cmd;
                 
                 if(cmdstr == "send"){
