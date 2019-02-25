@@ -299,7 +299,7 @@ static void ShiftRows(state_t* state)
 
 static uint8_t xtime(uint8_t x)
 {
-  return ((x<<1) ^ (((x>>7) & 1) * 0x1b));
+  return (uint8_t)((x<<1) ^ (((x>>7) & 1) * 0x1b));
 }
 
 // MixColumns function mixes the columns of the state matrix
@@ -558,7 +558,7 @@ void AES_CTR_xcrypt_buffer(struct AES_ctx* ctx, uint8_t* buf, uint32_t length)
           ctx->Iv[bi] = 0;
           continue;
         } 
-        ctx->Iv[bi] += (uint8_t) 1;
+        ctx->Iv[bi] +=  1;
         break;   
       }
       bi = 0;

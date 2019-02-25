@@ -215,14 +215,19 @@ int set(string instruct, vector<string> &configs, vector<string> &lconfigs, vect
     int if_find = sqlite3_column_int(psqlsmt, 0);
     if(if_find);
     else{
-        error::printError("Couldn't SET before INIT process.");
+        error::printError("Couldn't SET before INIT.");
         return -1;
     }
     sqlite3_finalize(psqlsmt);
+
     if(targets[0] == "server"){
+		if (targets.size() < 3) {
+			error::printError("Illegal Args.\nFromat set server [server_ip] [server_port].");
+			return -1;
+		}
         sql_quote = "UPDATE client_info SET msqes_ip = ?1, msqes_port = ?2 WHERE rowid = 1;";
         sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
-        
+        //检查广场服务器IP地址是否正确
         if(!Addr::checkValidIP(targets[1])){
             error::printError("Arg(ipaddr) is abnomal.");
             sqlite3_finalize(psqlsmt);
@@ -230,7 +235,7 @@ int set(string instruct, vector<string> &configs, vector<string> &lconfigs, vect
             return -1;
         }
         sqlite3_bind_text(psqlsmt, 1, targets[1].data(), -1, SQLITE_TRANSIENT);
-        
+        //获得广场服务器端口
         stringstream ss;
         ss<<targets[2];
         int port;
@@ -243,6 +248,8 @@ int set(string instruct, vector<string> &configs, vector<string> &lconfigs, vect
             return -1;
         }
         sqlite3_bind_int(psqlsmt, 2, port);
+
+		//执行数据库指令
         int rtn = sqlite3_step(psqlsmt);
         if(rtn != SQLITE_DONE){
             sql::printError(psql);
@@ -250,6 +257,11 @@ int set(string instruct, vector<string> &configs, vector<string> &lconfigs, vect
         sqlite3_finalize(psqlsmt);
     }
     else if (targets[0] == "key"){
+		if (targets.size() < 3) {
+			error::printError("Illegal Args.\nFromat set key [key_type] [key]");
+			return -1;
+		}
+		//客户端远程管理口令
         if(targets[1] == "admin"){
             string hexresult;
             SHA1_Easy(hexresult, targets[2]);
@@ -264,6 +276,7 @@ int set(string instruct, vector<string> &configs, vector<string> &lconfigs, vect
             }
             sqlite3_finalize(psqlsmt);
         }
+		//广场服务器访问口令
         else if(targets[1] == "server"){
             sql_quote = "UPDATE client_info SET msqes_key = ?1 WHERE rowid = 1;";
             sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
@@ -278,6 +291,10 @@ int set(string instruct, vector<string> &configs, vector<string> &lconfigs, vect
             return -1;
         }
     }
+	else {
+		error::printError("Operation doesn't make sense.");
+		return 0;
+	}
     error::printSuccess("Succeed.");
     sqlite3_close(psql);
     return 0;
@@ -287,8 +304,10 @@ int server(string instruct, vector<string> &configs, vector<string> &lconfigs, v
     initClock();
     setThreadsClock();
     if(targets.size() == 0){
-        Server nsvr;
-        setServerClock(&nsvr, 3);
+        //Server nsvr;
+        //setServerClock(&nsvr, 3);
+		SQEServer nsvr;
+		setServerClockForSquare(&nsvr, 3);
     }
     else{
         if(targets[0] == "square"){
@@ -363,37 +382,45 @@ int construct(string instruct, vector<string> &configs, vector<string> &lconfigs
 }
 
 int client(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets){
+	
     sqlite3 *psql;
     sqlite3_stmt *psqlsmt;
     const char *pzTail;
+
     if(sqlite3_open("info.db", &psql) == SQLITE_ERROR){
         sql::printError(psql);
         return -1;
     }
+	
 //    初始化时钟
     initClock();
     setThreadsClock();
     
 //    建立客户端
     Client nclt(9050);
+	
     bool if_setip = false;
     string set_ip;
+	
     
     if(config_search(configs, "-p")){
         set_ip = targets[0];
         printf("Set IP: %s\n",set_ip.data());
         if_setip = true;
     }
+	
     setClientClock(&nclt, 3);
+	
     request *preq;
     
+
 //    获得主广场服务器的通信公钥
     string sql_quote = "select count(*) from client_info where rowid = 1 and msqes_rsa_public is null;";
     sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
     sqlite3_step(psqlsmt);
     int if_null = sqlite3_column_int(psqlsmt, 0);
     sqlite3_finalize(psqlsmt);
-    
+
 //    获得主广场服务器的ip地址及其通信端口
     string msqe_ip;
     int msqe_port;
@@ -403,12 +430,17 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
     msqe_ip = (const char *)sqlite3_column_text(psqlsmt, 0);
     msqe_port = sqlite3_column_int(psqlsmt, 1);
     sqlite3_finalize(psqlsmt);
-    
+	error::printSuccess("Main Server IP: " + msqe_ip);
+	error::printSuccess("Main Server Port: " + std::to_string(msqe_port));
+	
 //    如果本地没有主广场服务器的公钥
     if(if_null){
+		//向广场服务器申请通信公钥
         nclt.NewRequest(&preq, msqe_ip, msqe_port, "public request", "request for public key");
         nclt.NewRequestListener(preq, 30, psql, getSQEPublicKey);
         if_wait = 1;
+
+		//等待广场服务器回应
         while (if_wait == 1) {
             sleep(10);
         }
@@ -416,15 +448,18 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
 #ifdef DEBUG
             printf("Succeed In Getting Rsa Public Key From SQEServer.\n");
 #endif
+			error::printSuccess("Succeed In Requesting Public Key.");
         }
         else{
 #ifdef DEBUG
             printf("Error In Getting Rsa Public Key From SQEServer.\n");
 #endif
+			error::printError("Fail To Request Public Key.");
             throw "connection error";
             return -1;
         }
     }
+	
 //    获得与广场服务器的通信的公钥
     sql_quote = "select msqes_rsa_public from client_info where rowid = 1;";
     sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
@@ -440,7 +475,8 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
     
     Document reqdata;
     if(reqdata.Parse(reqstr.data()).HasParseError()) throw "fail to parse into json";
-//    key
+	
+//    生成并传递端对端加密报文密钥
     reqdata["key"].SetArray();
     Value &tmp_key = reqdata["key"];
     const uint8_t *p_key = naeskey.GetKey();
@@ -448,61 +484,78 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
     for (int idx = 0; idx <32; idx++) {
         tmp_key.PushBack(p_key[idx],allocator);
     }
-    
+	
+	
     reqdata["name"].SetString(nclt.name.data(),(uint32_t)nclt.name.size());
-    reqdata["tag"].SetString(nclt.tag.data(),(uint32_t)nclt.name.size());
+    reqdata["tag"].SetString(nclt.tag.data(),(uint32_t)nclt.tag.size());
     reqdata["sqe_key"].SetString(nclt.sqe_key.data(), (uint32_t)nclt.sqe_key.size());
-    reqdata["listen_port"].SetInt(9053);
-    
+	//设置TCP监听端口
+    reqdata["listen_port"].SetInt(9052);
+	
+	
+    //如果强制指定客户端IP地址
     string ip;
     if(if_setip) ip = set_ip;
-    else ip = inet_ntoa(nclt.server_cnt->GetAddr().Obj()->sin_addr);
-
+    else ip = "127.0.0.1";
+	
     reqdata["listen_ip"].SetString(ip.data(),(uint32_t)ip.size());
-    
+	
+
+    //构造请求
     StringBuffer strbuff;
-    Writer<StringBuffer> writer(strbuff);
+	Writer<StringBuffer> writer(strbuff);
     reqdata.Accept(writer);
     string json_str = strbuff.GetString();
-    printf("JSON: %s\n",json_str.data());
+
+	printf("Connecting...\n");
 //    已获得主广场服务器的密钥，进行启动客户端守护进程前的准备工作
     nclt.NewRequest(&preq, msqe_ip, msqe_port, "private request", json_str, true);
-    nclt.NewRequestListener(preq, 99, psql,registerSQECallback);
-    
+    nclt.NewRequestListener(preq, 44, psql,registerSQECallback);
+
+    //等待主广场服务器回应
     if_wait = 1;
-    while (if_wait) {
+    while (if_wait == 1) {
         sleep(1);
     }
     if (!if_wait) {
+		
 //        成功注册
-        printf("Wait for server to connect\n");
+        printf("Get Respond From Server.\n");
 //        创建守护进程
-        
         int shmid = shmget((key_t)9058, 1024, 0666|IPC_CREAT);
         if(shmid == -1){
             printf("SHMAT Failed.\n");
         }
         pid_t fpid = fork();
         if(fpid == 0){
+			//守护进程
             printf("Client Register Deamon Has Been Created.");
-            nclt.server_cnt = new SocketTCPCServer(9053);
+            nclt.server_cnt = new SocketTCPCServer(9052);
             nclt.server_cnt->Listen();
+
 //            获得共享内存地址
             Byte *buff = (Byte *)shmat(shmid, NULL, 0);
             if(shmid == -1){
                 printf("SHMAT Failed.\n");
             }
+
             while (1) {
-                if(!memcmp(buff, "SEND", sizeof(uint32_t))){
-                    printf("Get Sending Raw Data\n");
-                    memset(buff, 0, sizeof(uint32_t));
+				//检测父进程信号
+                if(!memcmp(buff, "Exit", sizeof(uint32_t))){
+					error::printInfo("get killing signal.");
+					//断开共享内存连接
+					shmdt(buff);
+					exit(0);
                 }
+
                 nclt.server_cnt->Accept();
-                //printf("Get connection request from server.\n");
+                
                 connection_listener *pncl = new connection_listener();
                 pncl->client_addr = nclt.server_cnt->GetClientAddr();
                 pncl->data_sfd = nclt.server_cnt->GetDataSFD();
                 pncl->key = nclt.post_key;
+				pncl->father_buff = buff;
+
                 pthread_attr_t attr;
                 pthread_attr_init(&attr);
                 pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
@@ -512,24 +565,35 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
             }
         }
         else{
-//            父进程
+			//父进程
+			//创建并获得共享内存地址
             int shmid = shmget((key_t)9058, 1024, 0666|IPC_CREAT);
             Byte *buff = (Byte *)shmat(shmid, 0, 0);
-            printf("Net Command line: \n");
+			while (1) {
+				if (!memcmp(buff, "D_OK", sizeof(uint32_t))) {
+					memset(buff, 0, sizeof(uint32_t));
+					break;
+				}
+				usleep(1000);
+			}
+			error::printSuccess("\nShell For Client: ");
             while (1) {
                 char cmd[1024];
                 printf(">");
-				scanf("%s", cmd);
+				fgets(cmd,1024,stdin);
                 string cmdstr = cmd;
                 
-                if(cmdstr == "send"){
-                    memcpy(buff, "SEND", sizeof(uint32_t));
+                if(cmdstr == "Exit"){
+                    memcpy(buff, "Exit", sizeof(uint32_t));
                 }
                 
             }
         }
+
+		
         
     }
+	
     return 0;
 }
 

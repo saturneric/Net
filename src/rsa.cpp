@@ -38,7 +38,7 @@ long long ExtEuclid(long long a, long long b)
    return y;
 }
 
-long long rsa_modExp(long long b, long long e, long long m)
+long long rsa_modExp(unsigned long long b, unsigned long long e, unsigned long long m)
 {
   if (b < 0 || e < 0 || m <= 0){
     exit(1);
@@ -164,8 +164,7 @@ unsigned char *rsa_decrypt(const uint64_t *message, const unsigned long message_
   unsigned char *decrypted = (unsigned char *) malloc(message_size/sizeof(uint64_t));
   unsigned char *temp = (unsigned char *) malloc(message_size);
   if((decrypted == NULL) || (temp == NULL)){
-    fprintf(stderr,
-     "Error: Heap allocation failed.\n");
+    fprintf(stderr,"Error: Heap allocation failed.\n");
     return NULL;
   }
   // Now we go through each 8-byte chunk and decrypt it.

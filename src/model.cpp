@@ -23,6 +23,9 @@ namespace error {
 	void printRed(string red_info) {
 		printf("\033[31m%s\n\033[0m", red_info.data());
 	}
+	void printInfo(string info) {
+		printf("%s\n", info.data());
+	}
 }
 
 bool config_search(vector<string> &configs,string tfg){
@@ -88,11 +91,11 @@ void *connectionDeamon(void *args){
         Server::ProcessSignedRawMsg(buff, size, *pnrwd);
         if(!memcmp(&pnrwd->info, "LCNT", sizeof(uint32_t))){
             if_sm = false;
-            printf("Long Connection From Server\n");
+            printf("Long Connection From Server.\n");
         }
         else if(!memcmp(&pnrwd->info, "SCNT", sizeof(uint32_t))){
             if_sm = true;
-            printf("Short Connection From Server\n");
+            printf("Short Connection From Server.\n");
         }
         else if(!memcmp(&pnrwd->info, "CNTL", sizeof(uint32_t))){
             if_sm = true;
@@ -102,14 +105,14 @@ void *connectionDeamon(void *args){
             pthread_exit(NULL);
         }
         else{
-            printf("Connection illegal\n");
+            printf("Connection illegal.\n");
             delete pnrwd;
             pthread_exit(NULL);
         }
         
     }
     else{
-        printf("Connection illegal\n");
+        printf("Connection illegal.\n");
         delete pnrwd;
         pthread_exit(NULL);
     }
@@ -132,7 +135,8 @@ void *connectionDeamon(void *args){
                         Document ndoc;
                         ndoc.Parse(jres_str.data());
                         if(ndoc["status"].GetString() == string("ok")){
-                            printf("Register Successful.\n");
+							error::printSuccess("Register Successful.");
+							memcpy(pcntl->father_buff,"D_OK", sizeof(uint32_t));
                         }
                     }
                 }

@@ -46,7 +46,6 @@ void *clientRespondDeamon(void *pvclt){
         if(tlen > 0){
 //            记录有效数据包
             if(Server::CheckRawMsg(str, tlen)){
-                
                 raw_data *ptrdt = new raw_data();
                 Server::ProcessSignedRawMsg(str, tlen, *ptrdt);
                 ptrdt->address = *(struct sockaddr_in *)taddr.RawObj();
@@ -155,6 +154,7 @@ void Client::NewRequest(request **ppreq,string send_ip,int send_port,string type
     *ppreq = pnreq;
 }
 
+//创建新的对服务器的请求
 void Client::NewRequestListener(request *preq, int timeout, void *args, void (*callback)(respond *,void *)){
     request_listener *pnrl = new request_listener();
     packet npkt;
@@ -164,17 +164,19 @@ void Client::NewRequestListener(request *preq, int timeout, void *args, void (*c
     pnrl->clicks = 0;
     pnrl->p_req = preq;
     pnrl->args = args;
+
     SQEServer::Request2Packet(npkt, *preq);
     Server::Packet2Rawdata(npkt, pnrl->trwd);
 //    检查请求是否要求加密
     if(preq->if_encrypt == true){
+		
         Server::EncryptRSARawMsg(pnrl->trwd, sqe_pbc);
         Server::SignedRawdata(&pnrl->trwd,"RPKT");
     }
     else{
         Server::SignedRawdata(&pnrl->trwd,"SPKT");
     }
-   
+	
     send_socket.SetSendSockAddr(*pnrl->p_req->t_addr.Obj());
     SendRawData(&pnrl->trwd);
     req_lst.push_back(pnrl);

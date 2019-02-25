@@ -79,6 +79,7 @@ void setServerClockForSquare(SQEServer *psvr, int clicks){
     setServerClock(psvr, clicks);
     pthread_mutex_init(&mutex_pktreq, NULL);
     pthread_mutex_init(&mutex_cltreg, NULL);
+
 //    注册标准数据包处理守护时钟
     clock_register *pncr = new clock_register();
     pncr->if_thread = true;
@@ -98,6 +99,7 @@ void setServerClockForSquare(SQEServer *psvr, int clicks){
     pncr->func = requestProcessorDeamonForSquare;
     pncr->arg = (void *)psvr;
     newClock(pncr);
+	error::printSuccess("Server Started...");
 }
 
 Server::Server(int port, string send_ip,int send_port):socket(port),send_socket(send_ip,send_port){
@@ -289,6 +291,7 @@ void Client::SendRawData(raw_data *trdt){
 
 int Server::SentRawdata(struct raw_data *trdt){
 //    对大包进行拆分发送
+	int rtn = 0;
     if(trdt->msg_size > 256){
         uint64_t aidx = 0,bidx = 0;
         int64_t alls = trdt->msg_size;
@@ -306,13 +309,15 @@ int Server::SentRawdata(struct raw_data *trdt){
             nnb.set(f_byte,bidx-aidx+1);
             
             nnb.build();
-            send_socket.SendRAW((Byte *)nnb.send_data, nnb.sdt_size);
+            rtn = send_socket.SendRAW((Byte *)nnb.send_data, nnb.sdt_size);
             aidx = bidx+1;
             tmp_idx++;
         }
     }
-    else send_socket.SendRAW(trdt->msg, trdt->msg_size);
-    return 0;
+	else {
+		rtn = send_socket.SendRAW(trdt->msg, trdt->msg_size);
+	}
+    return rtn;
 }
 
 void net_box::FreeNetBox(void){
@@ -397,6 +402,7 @@ void *serverDeamon(void *pvcti){
                 
                 if((pnbxl_itr = psvr->boxls.find(pnbx->b_id)) != psvr->boxls.end()){
                     box_listener *pnbxl = pnbxl_itr->second;
+					
                     if (pthread_mutex_lock(&mutex_box) != 0) throw "lock error";
                     if(pnbxl->boxs[pnbx->idx] == nullptr && pnbxl->nbn < pnbxl->cnt){
                         pnbxl->boxs[pnbx->idx] = pnbx;
@@ -412,6 +418,7 @@ void *serverDeamon(void *pvcti){
                 else{
                     box_listener *pnbxl = new box_listener();
                     pnbxl->cnt = pnbx->cnt;
+					pnbxl->address = *(struct sockaddr_in *)taddr.RawObj();
                     pnbxl->boxs = (net_box **) malloc(sizeof(net_box *) * pnbxl->cnt);
                     memset(pnbxl->boxs, 0, sizeof(net_box *) * pnbxl->cnt);
                     pnbxl->boxs[pnbx->idx] = pnbx;
@@ -465,6 +472,7 @@ void *boxProcessorDeamon(void *pvcti){
             raw_data *pnrdt = new raw_data();
             pboxl->TogtRawData(*pnrdt);
             pnrdt->r_id = pboxl->b_id;
+			pnrdt->address = pboxl->address;
             psvr->rawdata_in.push_back(pnrdt);
             pboxl->clicks = -1;
             pboxl->free_boxs();
@@ -632,14 +640,16 @@ void SQEServer::ProcessPacket(void){
 }
 
 SQEServer::SQEServer(int port):Server(port){
+	//连接数据库
     if(sqlite3_open("info.db", &psql) == SQLITE_ERROR){
         sql::printError(psql);
         throw "database is abnormal";
     }
+
     sqlite3_stmt *psqlsmt;
     const char *pzTail;
-//    从数据库获得服务器的公私钥
-    string sql_quote = "select sqes_public,sqes_private from server_info where rowid = 1;";
+//    从数据库获得服务器的公私钥及服务器名
+    string sql_quote = "select sqes_public,sqes_private,name from server_info where rowid = 1;";
     sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
     if(sqlite3_step(psqlsmt) != SQLITE_ROW){
         sql::printError(psql);
@@ -650,8 +660,13 @@ SQEServer::SQEServer(int port):Server(port){
     
     tbyt = (Byte *)sqlite3_column_blob(psqlsmt, 1);
     memcpy(&prc, tbyt, sizeof(private_key_class));
-    
-    sqlite3_finalize(psqlsmt);
+	name = (const char *)sqlite3_column_blob(psqlsmt, 2);
+	sqlite3_finalize(psqlsmt);
+
+	//打印关键信息
+	error::printSuccess("Server Name: "+name);
+	error::printSuccess("Listen Port: " + std::to_string(port));
+
 }
 
 void SQEServer::Packet2Request(packet &pkt, request &req){
@@ -734,13 +749,13 @@ void SQEServer::ProcessRequset(void){
                 pclr->t_addr.SetIP(jdoc["listen_ip"].GetString());
                 pclr->t_addr.SetPort(port);
                 pclr->passwd = rand64();
-//                联络进程生命周期
+//                联络线程生命周期
                 pclr->click = 9999;
                 //if(pthread_mutex_lock(&mutex_cltreg) != 0) throw "lock error";
                 client_lst.insert({pclr->client_id,pclr});
                 //pthread_mutex_unlock(&mutex_cltreg);
                 
-                printf("Ready to connect client %s[%s].\n",pclr->name.data(),pclr->tag.data());
+                printf("Register: %s[%s] IP: %s TCP_Port: %d\n",pclr->name.data(),pclr->tag.data(),jdoc["listen_ip"].GetString(),port);
 //                注册客户端联络守护进程
                 clock_register *pncr = new clock_register();
                 pncr->if_thread = true;
@@ -827,7 +842,10 @@ void Server::ProcessSendPackets(void){
         Packet2Rawdata(*ppkt, nrwd);
         SignedRawdata(&nrwd, "SPKT");
         send_socket.SetSendSockAddr(ppkt->address);
-        SentRawdata(&nrwd);
+		if (SentRawdata(&nrwd) < 0) {
+			error::printError("fail to send package.");
+			perror("sendto");
+		}
         freeRawdataServer(nrwd);
         freePcaketServer(*ppkt);
         delete ppkt;

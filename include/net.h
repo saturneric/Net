@@ -55,6 +55,7 @@ public :
 //    临时缓冲区
     char buff[BUFSIZ];
     SocketServer(int port,bool ipv4){
+		server_addr.SetIP("127.0.0.1");
         server_addr.SetPort(port);
         if(ipv4){
             ipptl = AF_INET;

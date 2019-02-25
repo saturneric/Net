@@ -181,6 +181,8 @@ struct box_listener{
     uint16_t cnt;
 //    接收到的分包数量
     uint16_t nbn;
+	//分包来源地址
+	sockaddr_in address;
 //    储存接收到的分包的动态数组
     net_box **boxs;
 //    合并分包成RawData
@@ -221,6 +223,7 @@ struct connection_listener{
     Addr client_addr;
     aes_key256 key;
     pthread_t pid;
+	void *father_buff;
 };
 
 //通用服务器类
@@ -307,6 +310,8 @@ protected:
     map<uint64_t,client_register *> client_lst;
 //    加密端对端报文
     list<encrypt_post *>post_lst;
+	//服务器名
+	string name;
 public:
     SQEServer(int port = 9048);
     void ProcessPacket(void);
@@ -333,7 +338,7 @@ class Client{
 //    回复处理列表
     list<respond *> res_lst;
 //    请求监听端口
-    uint32_t listen_port;
+    uint16_t listen_port;
     SocketUDPServer socket;
     SocketUDPClient send_socket;
 //    与服务器建立的稳定链接
