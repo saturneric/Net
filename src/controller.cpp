@@ -15,43 +15,121 @@ extern string PRIME_SOURCE_FILE;
 //线程阻塞开关
 int if_wait = 1;
 
+//工具组初始化
 int init(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets){
     sqlite3 *psql;
     sqlite3_stmt *psqlsmt;
+
+	//连接数据库
     sqlite3_open("info.db", &psql);
     const char *pzTail;
+	//对于服务器的初始化
     if(targets[0] == "server"){
-        sql::table_create(psql, "server_info", {
-            {"sqes_public","NONE"},
-            {"sqes_private","NONE"},
-            {"key_sha1","TEXT"}
-        });
-        sql::insert_info(psql, &psqlsmt, "server_info", {
-            {"sqes_public","?1"},
-            {"sqes_private","?2"},
-            {"key_sha1","?3"},
-        });
+		if (targets.size() < 3) {
+			error::printError("Illegal Args.\nFromat: init server [server_name] [key]");
+			return -1;
+		}
+
+		//检查名字是否合乎规范
+		if (!setting_file::if_name_illegal(targets[0].data())) {
+			error::printError("Illegal Arg server_name.");
+			return -1;
+		}
+
+		try {
+			//创建数据库服务器信息描述数据表
+			sql::table_create(psql, "server_info", {
+				{"name","TEXT"},
+				{"sqes_public","NONE"},
+				{"sqes_private","NONE"},
+				{"key_sha1","TEXT"}
+				});
+		}
+		catch (const char * errinfo) {
+			string errstr = errinfo;
+			if (errstr == "fail to create table") {
+				if (!config_search(configs, "-f")) {
+					error::printWarning("Have already init server information.\nUse arg \"-f\" to continue.");
+					return 0;
+				}
+				else{
+					string sql_quote = "DELETE FROM server_info;";
+					sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+					int rtn = sqlite3_step(psqlsmt);
+					if (rtn == SQLITE_DONE) {
+
+					}
+					else {
+						const char *error = sqlite3_errmsg(psql);
+						int errorcode = sqlite3_extended_errcode(psql);
+						printf("\033[31mSQL Error: [%d]%s\n\033[0m", errorcode, error);
+						throw error;
+					}
+					sqlite3_finalize(psqlsmt);
+				}
+			}
+		}
+
+		//构建数据库插入命令
+		sql::insert_info(psql, &psqlsmt, "server_info", {
+				{"sqes_public","?1"},
+				{"sqes_private","?2"},
+				{"key_sha1","?3"},
+				{"name","?4"},
+		});
+
         struct public_key_class npbkc;
         struct private_key_class nprkc;
+
+		//生成RSA钥匙串
         rsa_gen_keys(&npbkc, &nprkc, PRIME_SOURCE_FILE);
+		
+		//填写数据库数据表
         sqlite3_bind_blob(psqlsmt, 1, &npbkc, sizeof(public_key_class), SQLITE_TRANSIENT);
         sqlite3_bind_blob(psqlsmt, 2, &nprkc, sizeof(private_key_class), SQLITE_TRANSIENT);
-        if(targets[1].size() < 6) error::printWarning("Key is too weak.");
+		sqlite3_bind_blob(psqlsmt, 4, targets[1].data(), targets[1].size(), SQLITE_TRANSIENT);
+		
+		//生成服务器访问口令哈希码(SHA1)
+        if(targets[2].size() < 6) error::printWarning("Key is too weak.");
         string sha1_hex;
         SHA1_Easy(sha1_hex, targets[1]);
         sqlite3_bind_text(psqlsmt, 3, sha1_hex.data(), -1, SQLITE_TRANSIENT);
         
+		//执行数据库写入命令
         if(sqlite3_step(psqlsmt) != SQLITE_DONE){
             sql::printError(psql);
         }
         sqlite3_finalize(psqlsmt);
+		
+
+		//输出成功信息
         error::printSuccess("Succeed.");
+		
         sqlite3_close(psql);
         return 0;
         
     }
     else{
+		//对于客户端的初始化
+		if(targets.size() < 2) {
+			error::printError("Illegal Args.\nFromat: init [client_name] [client_tag]");
+			return -1;
+		}
+
+		//检测名字与标签是否符合规范
+		if (setting_file::if_name_illegal(targets[0]));
+		else {
+			error::printError("Illegal Arg client_name.");
+			return -1;
+		}
+		if (setting_file::if_name_illegal(targets[1]));
+		else {
+			error::printError("Illegal Arg client_tag.");
+			return -1;
+		}
+
         try {
+			//创建客户端描述信息数据表
             sql::table_create(psql, "client_info", {
                 {"name","TEXT"},
                 {"tag","TEXT"},
@@ -69,11 +147,13 @@ int init(string instruct, vector<string> &configs, vector<string> &lconfigs, vec
             });
         } catch (const char *error_info) {
             if(!strcmp(error_info, "fail to create table")){
+				//检测强制参数
                 if(!config_search(configs, "-f")){
                     printf("\033[33mWarning: Have Already run init process.Try configure -f to continue.\n\033[0m");
                     return 0;
                 }
                 else{
+					//	清空已存在的数据表
                     string sql_quote = "DELETE FROM client_info;";
                     sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
                     int rtn = sqlite3_step(psqlsmt);
@@ -93,19 +173,11 @@ int init(string instruct, vector<string> &configs, vector<string> &lconfigs, vec
         
     }
     
-    
+    //构建数据库插入命令
     sql::insert_info(psql, &psqlsmt, "client_info", {
         {"name","?1"},
         {"tag","?2"}
     });
-    if(setting_file::if_name_illegal(targets[0]));
-    else{
-        error::printError("Args(name) abnormal.");
-    }
-    if(setting_file::if_name_illegal(targets[1]));
-    else{
-        error::printError("Args(tag) abnormal.");
-    }
     sqlite3_bind_text(psqlsmt, 1, targets[0].data(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(psqlsmt, 2, targets[1].data(), -1, SQLITE_TRANSIENT);
     int rtn = sqlite3_step(psqlsmt);
@@ -115,17 +187,24 @@ int init(string instruct, vector<string> &configs, vector<string> &lconfigs, vec
     else throw "sql writes error";
     sqlite3_finalize(psqlsmt);
     sqlite3_close(psql);
+
+	//成功执行
+	error::printSuccess("Succeed.");
     return 0;
 }
 
+//修改工具组配置信息
 int set(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets){
     if(targets.size() < 2){
-        error::printError("Args error.");
+        error::printError("Illegal Args.\nUse help to get more information.");
         return -1;
     }
+
     sqlite3 *psql;
     sqlite3_stmt *psqlsmt;
     const char *pzTail;
+
+	//连接数据库
     if(sqlite3_open("info.db", &psql) == SQLITE_ERROR){
         sql::printError(psql);
         return -1;
@@ -136,16 +215,16 @@ int set(string instruct, vector<string> &configs, vector<string> &lconfigs, vect
     int if_find = sqlite3_column_int(psqlsmt, 0);
     if(if_find);
     else{
-        error::printError("Couldn't do set before init process.");
+        error::printError("Couldn't SET before INIT process.");
         return -1;
     }
     sqlite3_finalize(psqlsmt);
-    if(targets[0] == "square"){
+    if(targets[0] == "server"){
         sql_quote = "UPDATE client_info SET msqes_ip = ?1, msqes_port = ?2 WHERE rowid = 1;";
         sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
         
         if(!Addr::checkValidIP(targets[1])){
-            error::printError("Args(ipaddr) is abnomal.");
+            error::printError("Arg(ipaddr) is abnomal.");
             sqlite3_finalize(psqlsmt);
             sqlite3_close(psql);
             return -1;
@@ -158,7 +237,7 @@ int set(string instruct, vector<string> &configs, vector<string> &lconfigs, vect
         ss>>port;
         if(port > 0 && port <= 65535);
         else{
-            error::printError("Args(port) is abnomal.");
+            error::printError("Arg(port) is abnomal.");
             sqlite3_finalize(psqlsmt);
             sqlite3_close(psql);
             return -1;
@@ -185,7 +264,7 @@ int set(string instruct, vector<string> &configs, vector<string> &lconfigs, vect
             }
             sqlite3_finalize(psqlsmt);
         }
-        else if(targets[1] == "square"){
+        else if(targets[1] == "server"){
             sql_quote = "UPDATE client_info SET msqes_key = ?1 WHERE rowid = 1;";
             sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
             sqlite3_bind_text(psqlsmt, 1, targets[2].data(), -1, SQLITE_TRANSIENT);

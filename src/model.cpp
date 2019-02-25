@@ -20,6 +20,9 @@ namespace error {
     void printSuccess(string succes_info){
         printf("\033[32m%s\n\033[0m",succes_info.data());
     }
+	void printRed(string red_info) {
+		printf("\033[31m%s\n\033[0m", red_info.data());
+	}
 }
 
 bool config_search(vector<string> &configs,string tfg){

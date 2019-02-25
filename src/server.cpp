@@ -792,7 +792,7 @@ void SQEServer::Respond2Packet(packet &pkt, respond &res){
     pkt.type = RESPOND_TYPE;
     pkt.address = *res.t_addr.Obj();
     pkt.AddBuff((void *) &res.r_id, sizeof(rng::rng64));
-    pkt.AddBuff((void *) res.t_addr.Obj(), sizeof(sockaddr_in));
+    pkt.AddBuff((void *) res.t_addr.Obj(), sizeof(struct sockaddr_in));
     pkt.AddBuff((void *) res.type.data(), (uint32_t)res.type.size());
     pkt.AddBuff((void *) res.buff, res.buff_size);
 }
@@ -899,6 +899,7 @@ void SQEServer::Packet2Post(packet &pkt, encrypt_post &pst, aes_key256 &key){
     TMD5 = string((const char *)pkt.buffs[4].second,32);
     uint8_t *t_data = (uint8_t *)malloc(pst.buff_size);
     memcpy(t_data, pkt.buffs[3].second, pst.buff_size);
+
 //    解密数据
     struct AES_ctx naes;
     key.MakeIV();
@@ -1037,6 +1038,7 @@ void *clientChecker(void *args){
     while (1) {
         if(pcltl->if_connected == false) break;
         if(nstcpc.SendRAW(pnrwd->msg, pnrwd->msg_size) < 0){
+			//如果心跳包未被成功发送
             printf("Lose Connection %s[%s]\n",pcltl->pcltr->name.data(),pcltl->pcltr->tag.data());
             pcltl->if_connected = false;
             break;

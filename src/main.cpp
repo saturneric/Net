@@ -15,13 +15,14 @@ rng::rng128 rand128({rng::tsc_seed{}(),rng::tsc_seed{}()});
 int main(int argc, const char *argv[]){
 //    命令
     string instruct;
-//    设置
+//    参数设置
     vector<string> config;
-//    长设置
+//    参数长设置
     vector<string> long_config;
-//    目标
+//    参数目标功能
     vector<string> target;
-//    注册函数
+
+//    注册参数函数
     struct instructions istns;
     istns.construct = construct;
     istns.update = update;
@@ -50,34 +51,45 @@ int main(int argc, const char *argv[]){
             }
         }
     }
-//    处理命令
-    if(instruct == "construct"){
-        if(istns.construct != nullptr) istns.construct(instruct,config,long_config,target);
-        else error::printError("Function not found.");
-    }
-    else if (instruct == "update"){
-        if(istns.update != nullptr) istns.update(instruct,config,long_config,target);
-        else error::printError("Function not found.");
-    }
-    else if (instruct == "server"){
-        if(istns.update != nullptr) istns.server(instruct,config,long_config,target);
-        else error::printError("Function not found.");
-    }
-    else if (instruct == "init"){
-        if(istns.update != nullptr) istns.init(instruct,config,long_config,target);
-        else error::printError("Function not found.");
-    }
-    else if (instruct == "set"){
-        if(istns.update != nullptr) istns.set(instruct,config,long_config,target);
-        else error::printError("Function not found.");
-    }
-    else if (instruct == "client"){
-        if(istns.update != nullptr) istns.client(instruct,config,long_config,target);
-        else error::printError("Function not found.");
-    }
-    else{
-        printf("\033[33mInstruction \"%s\" doesn't make sense.\n\033[0m",instruct.data());
-    }
+	
+	int rtn = 0;
+//    处理解析命令
+	try {
+		
+		if (instruct == "construct") {
+			if (istns.construct != nullptr) rtn = istns.construct(instruct, config, long_config, target);
+			else error::printError("Function not found.");
+		}
+		else if (instruct == "update") {
+			if (istns.update != nullptr) rtn = istns.update(instruct, config, long_config, target);
+			else error::printError("Function not found.");
+		}
+		else if (instruct == "server") {
+			if (istns.update != nullptr) rtn = istns.server(instruct, config, long_config, target);
+			else error::printError("Function not found.");
+		}
+		else if (instruct == "init") {
+			if (istns.update != nullptr) rtn = istns.init(instruct, config, long_config, target);
+			else error::printError("Function not found.");
+		}
+		else if (instruct == "set") {
+			if (istns.update != nullptr) rtn = istns.set(instruct, config, long_config, target);
+			else error::printError("Function not found.");
+		}
+		else if (instruct == "client") {
+			if (istns.update != nullptr) rtn = istns.client(instruct, config, long_config, target);
+			else error::printError("Function not found.");
+		}
+		else {
+			printf("\033[33mInstruction \"%s\" doesn't make sense.\n\033[0m", instruct.data());
+		}
+	}
+	catch (const char *errorinfo) {
+		string errstr = errorinfo;
+		error::printError(errstr);
+		if (rtn < 0) error::printRed("Abort.");
+	}
+
     
     return 0;
 }

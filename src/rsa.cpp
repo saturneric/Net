@@ -129,7 +129,7 @@ void rsa_gen_keys(struct public_key_class *pub, struct private_key_class *priv, 
     d = d+phi_max;
   }
 
-  printf("primes are %lld and %lld\n",(long long)p, (long long )q);
+  //printf("primes are %lld and %lld\n",(long long)p, (long long )q);
   // We now store the public / private keys in the appropriate structs
   pub->modulus = max;
   pub->exponent = e;

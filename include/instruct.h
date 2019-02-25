@@ -22,11 +22,12 @@
 #include "rng.hpp"
 
 
-
+//提示信息打印类函数
 namespace error{
     void printError(string error_info);
     void printWarning(string warning_info);
     void printSuccess(string succes_info);
+	void printRed(string red_info);
 }
 
 struct instructions{
