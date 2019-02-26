@@ -67,9 +67,15 @@ struct encrypt_post{
     Byte *buff = nullptr;
 //    内容长度
     uint32_t buff_size = 0;
+	Document edoc;
+
+	bool Parse(string json);
+	void GetJSON(string &json);
+
     void SetBuff(Byte *buff, uint32_t size);
     void FreeBuff(void);
     ~encrypt_post(void);
+	void InitNew(uint64_t client_id, Addr t_addr, const char *type);
 };
 
 //回复数据包
@@ -323,10 +329,12 @@ public:
     static void BuildBeatsRawData(raw_data &rwd);
     static void BuildSmallRawData(raw_data &rwd, const char *info);
     static void Post2SignedRawData(void *buff, uint32_t buff_size, const char *info, aes_key256 &key, raw_data &rw);
+	static void Post2SignedRawData(encrypt_post &ecyp, aes_key256 &key, raw_data &rw);
     static void SignedRawData2Post(raw_data &rwd, encrypt_post &pst, aes_key256 &key);
     static void Post2Packet(packet &pkt, encrypt_post &pst, aes_key256 &key);
     static void Packet2Post(packet &pkt, encrypt_post &pst, aes_key256 &key);
     static void GetPostInfo(packet &pkt, encrypt_post &pst);
+	static void SendConnectionInfo(SocketTCPClient *pcnt_sock, bool ifshort);
 };
 
 //通用客户端类
@@ -335,6 +343,8 @@ class Client{
     list<request_listener *> req_lst;
     list<raw_data *> rwd_lst;
     list<encrypt_post *> ecryp_lst;
+//TCP模式下有效二进制段列表
+	list<raw_data *> rwd_tcp;
 //    回复处理列表
     list<respond *> res_lst;
 //    请求监听端口

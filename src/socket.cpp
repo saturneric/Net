@@ -71,19 +71,19 @@ ssize_t SocketUDPServer::RecvRAW(char **p_rdt, Addr &taddr){
     if(set_fcntl){
         tlen = recvfrom(server_sfd, buff, BUFSIZ, 0, (struct sockaddr *)(&tsai), &tsai_size);
         
-        //            读取错误
+        //读取错误
         if(tlen == -1 && errno != EAGAIN){
             *p_rdt = nullptr;
             printf("%d",errno);
             perror("recv");
             return -1;
         }
-//        缓冲区没有信息
+		//缓冲区没有信息
         else if(tlen == 0 || (tlen == -1 && errno == EAGAIN)){
             *p_rdt = nullptr;
             return 0;
         }
-//        成功读取信息
+		//成功读取信息
         else{
             *p_rdt = (char *)malloc(tlen);
             taddr.SetSockAddr(tsai);
@@ -191,21 +191,12 @@ void SocketTCPCServer::SendRespond(string &str){
 }
 
 ssize_t SocketTCPClient::RecvRAW(char **p_rdt, Addr &taddr){
-    ssize_t bdtas = 0 ,tmp_bdtas;
-    *p_rdt = nullptr;
-    while ((tmp_bdtas = recv(client_sfd, buff, BUFSIZ, 0)) > 0) {
-        if(*p_rdt == nullptr){
-            *p_rdt = (char *)malloc(tmp_bdtas);
-            memcpy(*p_rdt, buff, tmp_bdtas);
-        }
-        else{
-            *p_rdt = (char *)realloc(*p_rdt, bdtas + tmp_bdtas);
-            memcpy(*p_rdt + bdtas, buff, tmp_bdtas);
-        }
-        bdtas += tmp_bdtas;
-        printf("Get Data Size %lu",tmp_bdtas);
-    }
-    return bdtas;
+	ssize_t tmp_bdtas = recv(client_sfd, buff, BUFSIZ, 0);
+	if (tmp_bdtas > 0) {
+		*p_rdt = (char *)malloc(tmp_bdtas);
+		memcpy(*p_rdt, buff, tmp_bdtas);
+	}
+	return tmp_bdtas;
 }
 
 

@@ -529,11 +529,11 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
         pid_t fpid = fork();
         if(fpid == 0){
 			//守护进程
-            printf("Client Register Deamon Has Been Created.");
+            printf("Client Register Deamon Has Been Created.\n");
             nclt.server_cnt = new SocketTCPCServer(9052);
             nclt.server_cnt->Listen();
 
-//            获得共享内存地址
+			//获得共享内存地址
             Byte *buff = (Byte *)shmat(shmid, NULL, 0);
             if(shmid == -1){
                 printf("SHMAT Failed.\n");

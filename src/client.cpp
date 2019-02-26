@@ -34,6 +34,7 @@ void *clientRequestDeamon(void *pvclt){
     pthread_exit(NULL);
 }
 
+//客户端回复处理守护线程
 void *clientRespondDeamon(void *pvclt){
     clock_thread_info *pclt = (clock_thread_info *) pvclt;
     Client *pclient = (Client *) pclt->args;
@@ -78,6 +79,7 @@ void *clientRespondDeamon(void *pvclt){
     pthread_exit(NULL);
 }
 
+//客户端请求监听管理线程
 void Client::ProcessRequestListener(void){
 //    加锁
     if (pthread_mutex_lock(&mutex_clt) != 0) throw "lock error";
@@ -119,6 +121,7 @@ void Client::ProcessRequestListener(void){
     req_lst.remove_if([](auto &preq){return preq->active == false;});
 }
 
+//设置客户端守护时钟
 void setClientClock(Client *pclient,int clicks){
     pthread_mutex_init(&mutex_clt, nullptr);
 //    注册回复数据接收时钟
@@ -143,6 +146,7 @@ void setClientClock(Client *pclient,int clicks){
     
 }
 
+//创建监听结构
 void Client::NewRequest(request **ppreq,string send_ip,int send_port,string type, string data, bool if_encrypt){
     request *pnreq = new request();
     pnreq->type = type;
@@ -154,7 +158,7 @@ void Client::NewRequest(request **ppreq,string send_ip,int send_port,string type
     *ppreq = pnreq;
 }
 
-//创建新的对服务器的请求
+//创建新的对服务器的请求的监听
 void Client::NewRequestListener(request *preq, int timeout, void *args, void (*callback)(respond *,void *)){
     request_listener *pnrl = new request_listener();
     packet npkt;
@@ -167,9 +171,8 @@ void Client::NewRequestListener(request *preq, int timeout, void *args, void (*c
 
     SQEServer::Request2Packet(npkt, *preq);
     Server::Packet2Rawdata(npkt, pnrl->trwd);
-//    检查请求是否要求加密
+	//检查请求是否要求加密
     if(preq->if_encrypt == true){
-		
         Server::EncryptRSARawMsg(pnrl->trwd, sqe_pbc);
         Server::SignedRawdata(&pnrl->trwd,"RPKT");
     }

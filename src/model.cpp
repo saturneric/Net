@@ -82,11 +82,14 @@ void *connectionDeamon(void *args){
     SocketTCPCServer ntcps;
     ntcps.SetDataSFD(pcntl->data_sfd);
     ntcps.SetClientAddr(pcntl->client_addr);
+
 //    获得连接的类型是长链还是断链
     size = ntcps.RecvRAW_SM(&buff, t_addr);
     raw_data *pnrwd = new raw_data();
-//    长连接还是短连接
+
+//    检测连接是长连接还是短连接
     bool if_sm = true;
+	string dget = "DGET";
     if(Server::CheckRawMsg(buff, size)){
         Server::ProcessSignedRawMsg(buff, size, *pnrwd);
         if(!memcmp(&pnrwd->info, "LCNT", sizeof(uint32_t))){
@@ -96,6 +99,7 @@ void *connectionDeamon(void *args){
         else if(!memcmp(&pnrwd->info, "SCNT", sizeof(uint32_t))){
             if_sm = true;
             printf("Short Connection From Server.\n");
+			ntcps.SendRespond(dget);
         }
         else if(!memcmp(&pnrwd->info, "CNTL", sizeof(uint32_t))){
             if_sm = true;
@@ -105,31 +109,37 @@ void *connectionDeamon(void *args){
             pthread_exit(NULL);
         }
         else{
-            printf("Connection illegal.\n");
+			//断开无效连接
+            printf("Connection Illegal.\n");
             delete pnrwd;
             pthread_exit(NULL);
         }
         
     }
     else{
-        printf("Connection illegal.\n");
+        printf("Connection Illegal.\n");
         delete pnrwd;
         pthread_exit(NULL);
     }
     delete pnrwd;
     
     while (1) {
+		//区分长连接与短连接
         if(if_sm) size = ntcps.RecvRAW(&buff, t_addr);
         else size = ntcps.RecvRAW_SM(&buff, t_addr);
         raw_data *pnrwd = new raw_data();
         packet *nppkt = new packet();
         encrypt_post *pncryp = new encrypt_post();
         if(size > 0){
+			printf("MSG: %s\n", buff);
             if(Server::CheckRawMsg(buff, size)){
                 Server::ProcessSignedRawMsg(buff, size, *pnrwd);
+				//获得端对端加密报文
                 if(!memcmp(&pnrwd->info, "ECYP", sizeof(uint32_t))){
+					printf("Get Encrypt Post.\n");
                     Server::Rawdata2Packet(*nppkt, *pnrwd);
                     SQEServer::Packet2Post(*nppkt, *pncryp, pcntl->key);
+					//获得注册信息反馈报文
                     if(!memcmp(&pncryp->type, "JRES", sizeof(uint32_t))){
                         string jres_str = string(pncryp->buff,pncryp->buff_size);
                         Document ndoc;
@@ -140,9 +150,11 @@ void *connectionDeamon(void *args){
                         }
                     }
                 }
+				//心跳连接
                 else if(!memcmp(&pnrwd->info, "BEAT", sizeof(uint32_t))){
                     //printf("Connection Beated.\n");
                 }
+				//管理指令连接
                 else if(!memcmp(&pnrwd->info, "SCMD", sizeof(uint32_t))){
 //                    来自管理员的命令
                     

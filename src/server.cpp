@@ -1068,11 +1068,11 @@ void *clientChecker(void *args){
     pthread_exit(NULL);
 }
 
+//注册客户端通信维持线程
 void *clientListener(void *args){
     client_listen *pcltl = (client_listen *)args;
     char *buff;
     Addr taddr;
-    printf("Start listening to client.\n");
     while(1){
 //        如果连接断开
         if(pcltl->if_connected == false) break;
@@ -1115,6 +1115,44 @@ void *clientListener(void *args){
     }
     pthread_exit(NULL);
 }
+bool resFromClient(SocketTCPClient *pcnt_sock){
+	char *buff;
+	Addr taddr;
+	pcnt_sock->RecvRAW(&buff, taddr);
+	if (!memcmp(buff, "DGET", sizeof(uint32_t))) {
+		free(buff);
+		return true;
+	}
+	else {
+		free(buff);
+		return false;
+	}
+}
+
+void encrypt_post::InitNew(uint64_t client_id, Addr t_addr, const char * type){
+	this->client_id = client_id;
+	this->t_addr = t_addr;
+	memcpy(&this->type, type, sizeof(uint32_t));
+	this->p_id = rand64();
+}
+
+void SQEServer::Post2SignedRawData(encrypt_post &ecyp, aes_key256 &key, raw_data &rw) {
+	packet *pnpkt = new packet();
+	Post2Packet(*pnpkt, ecyp, key);
+	Packet2Rawdata(*pnpkt, rw);
+	Server::freePcaketServer(*pnpkt);
+	delete pnpkt;
+	Server::SignedRawdata(&rw,"ECYP");
+}
+
+void SQEServer::SendConnectionInfo(SocketTCPClient *pcnt_sock, bool ifshort) {
+	raw_data nsrwd;
+	//说明连接类型
+	if(ifshort) SQEServer::BuildSmallRawData(nsrwd, "SCNT");
+	else SQEServer::BuildSmallRawData(nsrwd, "LCNT");
+	pcnt_sock->SendRAW(nsrwd.msg, nsrwd.msg_size);
+	Server::freeRawdataServer(nsrwd);
+}
 
 void *clientWaitDeamon(void *pvclt){
     clock_thread_info *pcti = (clock_thread_info *) pvclt;
@@ -1140,39 +1178,43 @@ void *clientWaitDeamon(void *pvclt){
     printf("Get Register: %s[%s]\n",pclr->name.data(),pclr->tag.data());
 //    注册信息报文
     string res_type = "{\"status\":\"ok\",\"passwd\":null}";
-    Document ndoc;
-    
-    ndoc.Parse(res_type.data());
+	encrypt_post *ncryp = new encrypt_post();
+
+    ncryp->Parse(res_type);
+
     uint8_t *ppidx = (uint8_t *)&pclr->passwd;
-    ndoc["passwd"].SetArray();
-    Document::AllocatorType &allocator = ndoc.GetAllocator();
+    ncryp->edoc["passwd"].SetArray();
+    Document::AllocatorType &allocator = ncryp->edoc.GetAllocator();
     for(int i = 0; i < 8; i++){
-        ndoc["passwd"].PushBack(ppidx[i], allocator);
+		ncryp->edoc["passwd"].PushBack(ppidx[i], allocator);
     }
-    StringBuffer sb;
-    Writer<StringBuffer> writer(sb);
-    ndoc.Accept(writer);
-    encrypt_post *ncryp = new encrypt_post();
-    string send_data = sb.GetString();
-//    初始化端对端加密报文
+	//初始化端对端加密报文
+	string send_data;
+	ncryp->GetJSON(send_data);
+
+	
+	ncryp->InitNew(pclr->client_id, pclr->t_addr, "JRES");
     ncryp->SetBuff((Byte *)send_data.data(),(uint32_t)send_data.size());
-    ncryp->client_id = pclr->client_id;
-    ncryp->p_id = rand64();
-    ncryp->t_addr = pclr->t_addr;
-    memcpy(&ncryp->type, "JRES", sizeof(uint32_t));
-    
-    packet *nppkt = new packet();
-    SQEServer::Post2Packet(*nppkt, *ncryp, pclr->key);
-    raw_data *pnrwd = new raw_data(), nsrwd;
-    Server::Packet2Rawdata(*nppkt, *pnrwd);
-    Server::SignedRawdata(pnrwd, "ECYP");
-//    说明连接类型
-    SQEServer::BuildSmallRawData(nsrwd, "SCNT");
-    pcnt_sock->SendRAW(nsrwd.msg, nsrwd.msg_size);
-    Server::freeRawdataServer(nsrwd);
-    
-    pcnt_sock->SendRAW(pnrwd->msg, pnrwd->msg_size);
-    pcnt_sock->Close();
+    raw_data *pnrwd = new raw_data();
+	SQEServer::Post2SignedRawData(*ncryp, pclr->key, *pnrwd);
+
+	//发送连接属性信息
+	SQEServer::SendConnectionInfo(pcnt_sock);
+	
+	if (resFromClient(pcnt_sock)) {
+		pcnt_sock->SendRAW(pnrwd->msg, pnrwd->msg_size);
+		pcnt_sock->Close();
+	}
+	else {
+		//注册连接未被识别
+		error::printError("Client connection error.");
+		delete pclr;
+		delete pnrwd;
+		delete ncryp;
+		clockThreadFinish(pcti->tid);
+		pthread_exit(NULL);
+	}
+	
     
     client_listen *pcltl = new client_listen();
     pcltl->pcltr = pclr;
@@ -1203,7 +1245,6 @@ void *clientWaitDeamon(void *pvclt){
     }
     
     delete pclr;
-    delete nppkt;
     delete pnrwd;
     delete ncryp;
 //    等待接收线程返回
