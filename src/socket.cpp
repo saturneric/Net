@@ -177,6 +177,10 @@ void SocketTCPClient::Reconnect(void){
 void SocketTCPCServer::CloseConnection(void){
     close(data_sfd);
 }
+void SocketTCPCServer::Close(void) {
+	close(server_sfd);
+}
+
 
 void SocketTCPClient::GetRespond(string &str){
     ssize_t size = recv(client_sfd, buff, BUFSIZ, 0);

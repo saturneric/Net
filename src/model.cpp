@@ -72,6 +72,7 @@ void registerSQECallback(respond *pres,void *args){
     }
 }
 
+//客户端连接管理守护线程
 void *connectionDeamon(void *args){
     connection_listener * pcntl = (connection_listener *)args;
     string first_data;
@@ -94,11 +95,9 @@ void *connectionDeamon(void *args){
         Server::ProcessSignedRawMsg(buff, size, *pnrwd);
         if(!memcmp(&pnrwd->info, "LCNT", sizeof(uint32_t))){
             if_sm = false;
-            printf("Long Connection From Server.\n");
         }
         else if(!memcmp(&pnrwd->info, "SCNT", sizeof(uint32_t))){
             if_sm = true;
-            printf("Short Connection From Server.\n");
 			ntcps.SendRespond(dget);
         }
         else if(!memcmp(&pnrwd->info, "CNTL", sizeof(uint32_t))){
@@ -111,7 +110,10 @@ void *connectionDeamon(void *args){
         else{
 			//断开无效连接
             printf("Connection Illegal.\n");
-            delete pnrwd;
+			delete pnrwd;
+			close(pcntl->data_sfd);
+			delete pcntl;
+
             pthread_exit(NULL);
         }
         
@@ -124,40 +126,44 @@ void *connectionDeamon(void *args){
     delete pnrwd;
     
     while (1) {
+		if (*pcntl->pif_atv == false) {
+			close(pcntl->data_sfd);
+			delete pcntl;
+			break;
+		}
 		//区分长连接与短连接
         if(if_sm) size = ntcps.RecvRAW(&buff, t_addr);
         else size = ntcps.RecvRAW_SM(&buff, t_addr);
-        raw_data *pnrwd = new raw_data();
-        packet *nppkt = new packet();
-        encrypt_post *pncryp = new encrypt_post();
+        
         if(size > 0){
-			printf("MSG: %s\n", buff);
+			raw_data *pnrwd = new raw_data();
+			packet *nppkt = new packet();
+			encrypt_post *pncryp = new encrypt_post();
             if(Server::CheckRawMsg(buff, size)){
                 Server::ProcessSignedRawMsg(buff, size, *pnrwd);
 				//获得端对端加密报文
                 if(!memcmp(&pnrwd->info, "ECYP", sizeof(uint32_t))){
-					printf("Get Encrypt Post.\n");
                     Server::Rawdata2Packet(*nppkt, *pnrwd);
                     SQEServer::Packet2Post(*nppkt, *pncryp, pcntl->key);
 					//获得注册信息反馈报文
                     if(!memcmp(&pncryp->type, "JRES", sizeof(uint32_t))){
-                        string jres_str = string(pncryp->buff,pncryp->buff_size);
-                        Document ndoc;
-                        ndoc.Parse(jres_str.data());
-                        if(ndoc["status"].GetString() == string("ok")){
+						//自我解析
+						pncryp->SelfParse();
+                        if(pncryp->edoc["status"].GetString() == string("ok")){
 							error::printSuccess("Register Successful.");
+							//进入客户端管理终端
 							memcpy(pcntl->father_buff,"D_OK", sizeof(uint32_t));
                         }
                     }
+					//管理指令连接
+					else if (!memcmp(&pnrwd->info, "JCMD", sizeof(uint32_t))) {
+						//来自管理员的命令
+
+					}
                 }
 				//心跳连接
                 else if(!memcmp(&pnrwd->info, "BEAT", sizeof(uint32_t))){
                     //printf("Connection Beated.\n");
-                }
-				//管理指令连接
-                else if(!memcmp(&pnrwd->info, "SCMD", sizeof(uint32_t))){
-//                    来自管理员的命令
-                    
                 }
                 Server::freeRawdataServer(*pnrwd);
                 Server::freePcaketServer(*nppkt);
@@ -171,12 +177,46 @@ void *connectionDeamon(void *args){
                 break;
             }
             free(buff);
+			delete pnrwd;
+			delete pncryp;
+			delete nppkt;
         }
-        delete pnrwd;
-        delete pncryp;
-        delete nppkt;
-        usleep(10000);
+        usleep(1000);
     }
     
     pthread_exit(NULL);
+}
+
+
+void *clientServiceDeamon(void *arg) {
+	connection_listener *pclst = (connection_listener *)arg;
+	while (1) {
+		if (pclst->if_active == false) {
+			break;
+		}
+		pclst->server_cnt->Accept();
+		//构造连接守护子进程
+		connection_listener *pncl = new connection_listener();
+		pncl->client_addr = pclst->client_addr;
+		pncl->data_sfd = pclst->server_cnt->GetDataSFD();
+		pncl->key = pclst->key;
+		pncl->father_buff = pclst->father_buff;
+		pncl->pif_atv = &pclst->if_active;
+
+		pthread_attr_t attr;
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+		pthread_create(&pncl->pid, &attr, connectionDeamon, pncl);
+		pthread_attr_destroy(&attr);
+		usleep(1000);
+	}
+}
+
+void gets_s(char *buff, uint32_t size) {
+	char ch;
+	uint32_t i = 0;
+	while ((ch = getchar()) != '\n' && i < (size - 1)) {
+		buff[i++] = ch;
+	}
+	buff[i] = '\0';
 }

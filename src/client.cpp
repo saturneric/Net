@@ -11,6 +11,7 @@
 
 pthread_mutex_t mutex_clt;
 
+//客户端构造函数
 Client::Client(int port, string send_ip,int send_port):socket(port),send_socket(send_ip,send_port){
     socket.UDPSetFCNTL();
     listen_port = port;
@@ -26,6 +27,7 @@ Client::Client(int port, string send_ip,int send_port):socket(port),send_socket(
     sqlite3_finalize(psqlsmt);
 }
 
+//客户端请求接收守护进程
 void *clientRequestDeamon(void *pvclt){
     clock_thread_info *pclt = (clock_thread_info *) pvclt;
     Client *pclient = (Client *) pclt->args;

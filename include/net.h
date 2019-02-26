@@ -164,6 +164,7 @@ public:
     void SetDataSFD(int tdata_sfd);
     void SetClientAddr(Addr &caddr);
     void CloseConnection(void);
+	void Close(void);
 //    接收简单字符串数据
     ssize_t Recv(string &str);
 //    接受储存二进制串

@@ -43,5 +43,9 @@ bool config_search(vector<string> &configs,string tfg);
 void getSQEPublicKey(respond *pres,void *args);
 void registerSQECallback(respond *pres,void *args);
 void* connectionDeamon(void *args);
+//客户端连接管理守护进程
+void *clientServiceDeamon(void *);
+//实用函数
+void gets_s(char *buff, uint32_t size);
 
 #endif /* instruct_h */

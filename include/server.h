@@ -68,8 +68,9 @@ struct encrypt_post{
 //    内容长度
     uint32_t buff_size = 0;
 	Document edoc;
-
+	StringBuffer sb;
 	bool Parse(string json);
+	void SelfParse(void);
 	void GetJSON(string &json);
 
     void SetBuff(Byte *buff, uint32_t size);
@@ -228,8 +229,11 @@ struct connection_listener{
     int data_sfd;
     Addr client_addr;
     aes_key256 key;
-    pthread_t pid;
-	void *father_buff;
+    pthread_t pid = 0;
+	void *father_buff = nullptr;
+	SocketTCPCServer *server_cnt = nullptr;
+	bool if_active = true;
+	bool *pif_atv = nullptr;
 };
 
 //通用服务器类

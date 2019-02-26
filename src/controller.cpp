@@ -539,28 +539,30 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
                 printf("SHMAT Failed.\n");
             }
 
+			//创建客户端连接管理线程
+			connection_listener *pncl = new connection_listener();
+			pncl->client_addr = nclt.server_cnt->GetClientAddr();
+			pncl->data_sfd = nclt.server_cnt->GetDataSFD();
+			pncl->key = nclt.post_key;
+			pncl->father_buff = buff;
+			pncl->server_cnt = nclt.server_cnt;
+
+			pthread_create(&pncl->pid, NULL, clientServiceDeamon, pncl);
+
+			memset(buff, 0, sizeof(uint32_t));
             while (1) {
 				//检测父进程信号
                 if(!memcmp(buff, "Exit", sizeof(uint32_t))){
-					error::printInfo("get killing signal.");
+					pncl->if_active = false;
+					
+					pthread_join(pncl->pid, NULL);
+					nclt.server_cnt->Close();
+					delete pncl;
+					memcpy(buff, "SEXT", sizeof(uint32_t));
 					//断开共享内存连接
 					shmdt(buff);
 					exit(0);
                 }
-
-                nclt.server_cnt->Accept();
-                
-                connection_listener *pncl = new connection_listener();
-                pncl->client_addr = nclt.server_cnt->GetClientAddr();
-                pncl->data_sfd = nclt.server_cnt->GetDataSFD();
-                pncl->key = nclt.post_key;
-				pncl->father_buff = buff;
-
-                pthread_attr_t attr;
-                pthread_attr_init(&attr);
-                pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-                pthread_create(&pncl->pid, &attr, connectionDeamon, pncl);
-                pthread_attr_destroy(&attr);
                 usleep(1000);
             }
         }
@@ -577,14 +579,19 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
 				usleep(1000);
 			}
 			error::printSuccess("\nShell For Client: ");
+			string cmdstr;
+			char cmd[1024];
             while (1) {
-                char cmd[1024];
                 printf(">");
-				fgets(cmd,1024,stdin);
-                string cmdstr = cmd;
-                
+				gets_s(cmd,1024);
+				cmdstr = cmd;
                 if(cmdstr == "Exit"){
+					error::printInfo("Start to stop service...");
                     memcpy(buff, "Exit", sizeof(uint32_t));
+					while (memcmp(buff, "SEXT", sizeof(uint32_t))) {
+						sleep(10000);
+					}
+					error::printInfo("Service stopped.");
                 }
                 
             }
@@ -593,6 +600,7 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
 		
         
     }
+
 	
     return 0;
 }

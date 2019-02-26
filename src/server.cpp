@@ -1068,7 +1068,11 @@ void *clientChecker(void *args){
     pthread_exit(NULL);
 }
 
-//注册客户端通信维持线程
+void encrypt_post::SelfParse(void) {
+	edoc.Parse(string(buff, buff_size).data());
+}
+
+//注册客户端接收通信维持线程
 void *clientListener(void *args){
     client_listen *pcltl = (client_listen *)args;
     char *buff;
@@ -1077,7 +1081,16 @@ void *clientListener(void *args){
 //        如果连接断开
         if(pcltl->if_connected == false) break;
 //        建立新的监听连接
-        pcltl->ptcps->Reconnect();
+		try {
+			pcltl->ptcps->Reconnect();
+		}
+		catch (const char *errinfo) {
+			string errstr = errinfo;
+			if (errstr == "fail to connect") {
+				pcltl->if_connected = false;
+				break;
+			}
+		}
 //        说明连接类型
         raw_data nsrwd;
         SQEServer::BuildSmallRawData(nsrwd, "CNTL");
@@ -1088,17 +1101,15 @@ void *clientListener(void *args){
             if(Server::CheckRawMsg(buff, size)){
                 raw_data nrwd;
                 Server::ProcessSignedRawMsg(buff, size, nrwd);
+				//如果二进制串中储存端对端加密报文
                 if(!memcmp(&nrwd.info,"ECYP",sizeof(uint32_t))){
-                    packet npkt;
-                    encrypt_post necryp;
-                    Server::Rawdata2Packet(npkt, nrwd);
-                    SQEServer::Packet2Post(npkt, necryp, pcltl->pcltr->key);
-                    Server::freePcaketServer(npkt);
+					encrypt_post necryp;
+					SQEServer::SignedRawData2Post(nrwd, necryp, pcltl->pcltr->key);
+
                     if(!memcmp(&necryp.type,"JIFO",sizeof(uint32_t))){
-                        Document ndoc;
-                        ndoc.Parse(string(necryp.buff,necryp.buff_size).data());
+						necryp.SelfParse();
                         printf("Client %s[%s] Send Encrypt Post(JSON).\n",pcltl->pcltr->name.data(),pcltl->pcltr->tag.data());
-                        uint64_t pwd = ndoc["pwdmd5"].GetInt64();
+                        uint64_t pwd = necryp.edoc["pwdmd5"].GetInt64();
                         if(pwd == pcltl->pcltr->passwd){
                             printf("Password Check Passed.\n");
                         }
@@ -1151,7 +1162,7 @@ void SQEServer::SendConnectionInfo(SocketTCPClient *pcnt_sock, bool ifshort) {
 	if(ifshort) SQEServer::BuildSmallRawData(nsrwd, "SCNT");
 	else SQEServer::BuildSmallRawData(nsrwd, "LCNT");
 	pcnt_sock->SendRAW(nsrwd.msg, nsrwd.msg_size);
-	Server::freeRawdataServer(nsrwd);
+	Server::freeRawdataServer(nsrwd); 
 }
 
 void *clientWaitDeamon(void *pvclt){
@@ -1188,10 +1199,8 @@ void *clientWaitDeamon(void *pvclt){
     for(int i = 0; i < 8; i++){
 		ncryp->edoc["passwd"].PushBack(ppidx[i], allocator);
     }
-	//初始化端对端加密报文
 	string send_data;
 	ncryp->GetJSON(send_data);
-
 	
 	ncryp->InitNew(pclr->client_id, pclr->t_addr, "JRES");
     ncryp->SetBuff((Byte *)send_data.data(),(uint32_t)send_data.size());
@@ -1199,8 +1208,8 @@ void *clientWaitDeamon(void *pvclt){
 	SQEServer::Post2SignedRawData(*ncryp, pclr->key, *pnrwd);
 
 	//发送连接属性信息
-	SQEServer::SendConnectionInfo(pcnt_sock);
-	
+	SQEServer::SendConnectionInfo(pcnt_sock,true);
+	//等待反馈
 	if (resFromClient(pcnt_sock)) {
 		pcnt_sock->SendRAW(pnrwd->msg, pnrwd->msg_size);
 		pcnt_sock->Close();
@@ -1215,32 +1224,26 @@ void *clientWaitDeamon(void *pvclt){
 		pthread_exit(NULL);
 	}
 	
-    
+    //建立客户端连接管理信息提供结构
     client_listen *pcltl = new client_listen();
     pcltl->pcltr = pclr;
     pcltl->if_get  = false;
     pcltl->pid = 0;
+
+	//建立子线程
     pthread_t bt,lt;
     pcltl->pcryp = nullptr;
     pcltl->ptcps = pcnt_sock;
-    
+
+    //监听线程
     pthread_create(&lt, NULL, clientListener, pcltl);
+	//连接状态监测线程
     pthread_create(&bt, NULL, clientChecker, pcltl);
     while (1 && pclr->click-- > 0) {
         sleep(1);
         if(pcltl->if_connected == false){
-            printf("Register lost, start to separate.\n");
+            printf("Register lost %s[%s]\n",pclr->name.data(),pclr->tag.data());
             break;
-        }
-        try{
-            //pcnt_sock->Reconnect();
-            //pcnt_sock->Close();
-        }
-        catch(const char *error){
-            if(!strcmp(error, "fail to connect")){
-                printf("Lose Register: %s[%s]\n",pclr->name.data(),pclr->tag.data());
-                break;
-            }
         }
     }
     
@@ -1276,7 +1279,7 @@ const uint8_t * aes_key256::GetIV(void){
 
 
 void SQEServer::BuildBeatsRawData(raw_data &rwd){
-    rwd.setData("Beat");
+    rwd.setData("B");
     SignedRawdata(&rwd, "BEAT");
 }
 
@@ -1306,4 +1309,14 @@ void SQEServer::SignedRawData2Post(raw_data &rwd, encrypt_post &pst, aes_key256 
 void SQEServer::BuildSmallRawData(raw_data &rwd, const char *info){
     rwd.setData("");
     SignedRawdata(&rwd, info);
+}
+
+bool encrypt_post::Parse(string json) {
+	return edoc.Parse(json.data()).HasParseError();
+}
+
+void encrypt_post::GetJSON(string &json) {
+	Writer<StringBuffer> writer(sb);
+	edoc.Accept(writer);
+	json = sb.GetString();
 }
