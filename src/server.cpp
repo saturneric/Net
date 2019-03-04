@@ -667,6 +667,28 @@ SQEServer::SQEServer(int port):Server(port){
 	error::printSuccess("Server Name: "+name);
 	error::printSuccess("Listen Port: " + std::to_string(port));
 
+	sql_quote = "select count(name) from sqlite_master where name = \"register_info\"";
+	sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+	if (sqlite3_step(psqlsmt) != SQLITE_ROW) {
+		sql::printError(psql);
+		throw "database is abnormal";
+	}
+	int if_find = sqlite3_column_int(psqlsmt,0);
+	if (!if_find) {
+		sql::table_create(psql, "register_info", {
+			{"name","TEXT"},
+			{"tag","TEXT"},
+			{"client_id","INT"},
+			{"key","NONE"},
+			{"ip","TEXT"},
+			{"udp_port","INT"},
+			{"tcp_port","INT"},
+			{"passwd","INT"},
+			{"status","INT"}
+		});
+		error::printInfo("create table register_info.");
+	}
+	sqlite3_finalize(psqlsmt);
 }
 
 void SQEServer::Packet2Request(packet &pkt, request &req){
@@ -749,8 +771,9 @@ void SQEServer::ProcessRequset(void){
                 pclr->t_addr.SetIP(jdoc["listen_ip"].GetString());
                 pclr->t_addr.SetPort(port);
                 pclr->passwd = rand64();
+				pclr->psql = psql;
 //                联络线程生命周期
-                pclr->click = 9999;
+                pclr->click = 99999;
                 //if(pthread_mutex_lock(&mutex_cltreg) != 0) throw "lock error";
                 client_lst.insert({pclr->client_id,pclr});
                 //pthread_mutex_unlock(&mutex_cltreg);
@@ -766,7 +789,33 @@ void SQEServer::ProcessRequset(void){
                 pncr->arg = (void *)pclr;
                 newClock(pncr);
                 rids.insert({preq->r_id,pclr});
-                
+
+				//写入注册信息到数据库
+				sqlite3_stmt *psqlsmt;
+				sql::insert_info(psql, &psqlsmt, "register_info",{
+					{"name","?1"},
+					{"tag","?2"},
+					{"client_id","?3"},
+					{"key","?4"},
+					{"ip","?5"},
+					{"passwd","?6"},
+					{"tcp_port","?7"},
+					{"udp_port","?8"},
+					{"status","?9"}
+				});
+
+				sqlite3_bind_text(psqlsmt, 1, pclr->name.data(), -1, SQLITE_TRANSIENT);
+				sqlite3_bind_text(psqlsmt, 2, pclr->tag.data(), -1, SQLITE_TRANSIENT);
+				sqlite3_bind_int64(psqlsmt, 3, pclr->client_id);
+				sqlite3_bind_blob(psqlsmt, 4, (const void *)pclr->key.key, sizeof(uint64_t) * 4, SQLITE_TRANSIENT);
+				sqlite3_bind_text(psqlsmt, 5, jdoc["listen_ip"].GetString(), -1, SQLITE_TRANSIENT);
+				sqlite3_bind_int64(psqlsmt, 6, pclr->passwd);
+				sqlite3_bind_int(psqlsmt, 7, port);
+				sqlite3_bind_int(psqlsmt, 8, preq->recv_port);
+				sqlite3_bind_int(psqlsmt, 9, 0);
+				sqlite3_step(psqlsmt);
+				sqlite3_finalize(psqlsmt);
+
             }
 //            构建回复包
             respond *pnr = new respond();
@@ -787,6 +836,84 @@ void SQEServer::ProcessRequset(void){
             pthread_mutex_unlock(&mutex_sndpkt);
             
         }
+		else if(preq->type == "client login"){
+			preq->req_doc.Parse(preq->data.data());
+			Document &ldoc = preq->req_doc;
+			
+			sqlite3_stmt *psqlsmt;
+			const char *pzTail;
+			client_register *pclr = new client_register();
+			pclr->client_id = ldoc["client_id"].GetInt64();
+			string sql_quote = "select * from register_info where client_id = ?1;";
+			sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+			sqlite3_bind_text(psqlsmt, 1, std::to_string(pclr->client_id).data(), -1, SQLITE_TRANSIENT);
+			if (sqlite3_step(psqlsmt) == SQLITE_DONE) {
+				error::printInfo("Invaild login.");
+				delete pclr;
+				sqlite3_finalize(psqlsmt);
+			}
+			else {
+				pclr->passwd = sqlite3_column_int64(psqlsmt, 7);
+				if (pclr->passwd == ldoc["passwd"].GetInt64()) {
+					if (sqlite3_column_int(psqlsmt, 8) == 0) {
+						//完善客户端登录管理结构体
+						pclr->name = (const char *)sqlite3_column_text(psqlsmt, 0);
+						pclr->tag = (const char *)sqlite3_column_text(psqlsmt, 1);
+						pclr->t_addr.SetIP((const char *)sqlite3_column_text(psqlsmt, 4));
+						pclr->t_addr.SetPort(sqlite3_column_int(psqlsmt, 6));
+						pclr->psql = psql;
+						memcpy((void *)pclr->key.GetKey(), sqlite3_column_blob(psqlsmt, 3), sizeof(uint64_t) * 4);
+						printf("Login successfully %s[%s]:%s\n", pclr->name.data(), pclr->tag.data());
+
+						//注册客户端联络守护进程
+						clock_register *pncr = new clock_register();
+						pncr->if_thread = true;
+						pncr->if_reset = false;
+						pncr->click = 64;
+						pncr->rawclick = 0;
+						pncr->func = clientWaitDeamon;
+						pncr->arg = (void *)pclr;
+						newClock(pncr);
+						rids.insert({ preq->r_id,pclr });
+
+						sqlite3_finalize(psqlsmt);
+						sql_quote = "update register_info set status = 1 where client_id = ?1";
+						sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+						sqlite3_bind_int64(psqlsmt, 1, pclr->client_id);
+						sqlite3_step(psqlsmt);
+						sqlite3_finalize(psqlsmt);
+					}
+					else {
+						sqlite3_finalize(psqlsmt);
+						delete pclr;
+					}
+
+					//构建回复包
+					respond *pnr = new respond();
+					pnr->r_id = preq->r_id;
+					string res_data = "{\"status\":\"ok\"}";
+					pnr->SetBuff((Byte *)res_data.data(), (uint32_t)res_data.size());
+					pnr->type = "register respond";
+					pnr->t_addr = preq->t_addr;
+					pnr->t_addr.SetPort(preq->recv_port);
+					packet *pnpkt = new packet();
+					Respond2Packet(*pnpkt, *pnr);
+					delete pnr;
+
+					//将标准数据包添加到发送列表
+					if (pthread_mutex_lock(&mutex_sndpkt) != 0) throw "lock error";
+					packets_out.push_back(pnpkt);
+					pthread_mutex_unlock(&mutex_sndpkt);
+
+				}
+				else {
+					error::printInfo("Wrong password");
+					delete pclr;
+					sqlite3_finalize(psqlsmt);
+				}
+			}
+
+		}
         delete preq;
         preq = nullptr;
     }
@@ -1062,7 +1189,7 @@ void *clientChecker(void *args){
             break;
         }
         else{
-            sleep(3);
+            sleep(1);
         }
     }
     pthread_exit(NULL);
@@ -1076,54 +1203,61 @@ void encrypt_post::SelfParse(void) {
 void *clientListener(void *args){
     client_listen *pcltl = (client_listen *)args;
     char *buff;
-    Addr taddr;
-    while(1){
-//        如果连接断开
-        if(pcltl->if_connected == false) break;
+	Addr taddr;
 //        建立新的监听连接
-		try {
-			pcltl->ptcps->Reconnect();
+	try {
+		pcltl->ptcps->Reconnect();
+	}
+	catch (const char *errinfo) {
+		string errstr = errinfo;
+		if (errstr == "fail to connect") {
+			pcltl->if_connected = false;
+			pthread_exit(NULL);
 		}
-		catch (const char *errinfo) {
-			string errstr = errinfo;
-			if (errstr == "fail to connect") {
-				pcltl->if_connected = false;
-				break;
-			}
-		}
-//        说明连接类型
-        raw_data nsrwd;
-        SQEServer::BuildSmallRawData(nsrwd, "CNTL");
-        pcltl->ptcps->SendRAW(nsrwd.msg, nsrwd.msg_size);
-        Server::freeRawdataServer(nsrwd);
-        ssize_t size = pcltl->ptcps->RecvRAW(&buff, taddr);
-        if(size > 0){
-            if(Server::CheckRawMsg(buff, size)){
-                raw_data nrwd;
-                Server::ProcessSignedRawMsg(buff, size, nrwd);
+	}
+	//发送连接属性信息
+	SQEServer::SendConnectionInfo(pcltl->ptcps, "CNTL");
+
+	while (1) {
+		//        如果连接断开
+		if (pcltl->if_connected == false) break;
+		ssize_t size = pcltl->ptcps->RecvRAW(&buff, taddr);
+		if (size > 0) {
+			if (Server::CheckRawMsg(buff, size)) {
+				raw_data nrwd;
+				Server::ProcessSignedRawMsg(buff, size, nrwd);
 				//如果二进制串中储存端对端加密报文
-                if(!memcmp(&nrwd.info,"ECYP",sizeof(uint32_t))){
+				if (!memcmp(&nrwd.info, "ECYP", sizeof(uint32_t))) {
 					encrypt_post necryp;
 					SQEServer::SignedRawData2Post(nrwd, necryp, pcltl->pcltr->key);
 
-                    if(!memcmp(&necryp.type,"JIFO",sizeof(uint32_t))){
+					if (!memcmp(&necryp.type, "JIFO", sizeof(uint32_t))) {
 						necryp.SelfParse();
-                        printf("Client %s[%s] Send Encrypt Post(JSON).\n",pcltl->pcltr->name.data(),pcltl->pcltr->tag.data());
-                        uint64_t pwd = necryp.edoc["pwdmd5"].GetInt64();
-                        if(pwd == pcltl->pcltr->passwd){
-                            printf("Password Check Passed.\n");
-                        }
-                        else{
-                            printf("Wrong Password.\n");
-                        }
-                    }
-                    //necryp.FreeBuff();
-                }
-                Server::freeRawdataServer(nrwd);
-            }
-            free(buff);
-        }
-    }
+						printf("Client %s[%s] Send Encrypt Post(JSON).\n", pcltl->pcltr->name.data(), pcltl->pcltr->tag.data());
+						uint64_t pwd = necryp.edoc["pwdmd5"].GetInt64();
+						if (pwd == pcltl->pcltr->passwd) {
+							printf("Password Check Passed.\n");
+						}
+						else {
+							printf("Wrong Password.\n");
+						}
+					}
+					//necryp.FreeBuff();
+				}
+				else if (!memcmp(&nrwd.info, "PING", sizeof(uint32_t))) {
+					error::printInfo("client ping.");
+
+				}
+				Server::freeRawdataServer(nrwd);
+			}
+			free(buff);
+		}
+		else if(size < 0){
+			pcltl->if_connected == false;
+			break;
+		}
+		usleep(1000);
+	}
     pthread_exit(NULL);
 }
 bool resFromClient(SocketTCPClient *pcnt_sock){
@@ -1156,11 +1290,10 @@ void SQEServer::Post2SignedRawData(encrypt_post &ecyp, aes_key256 &key, raw_data
 	Server::SignedRawdata(&rw,"ECYP");
 }
 
-void SQEServer::SendConnectionInfo(SocketTCPClient *pcnt_sock, bool ifshort) {
+void SQEServer::SendConnectionInfo(SocketTCPClient *pcnt_sock, string type) {
 	raw_data nsrwd;
 	//说明连接类型
-	if(ifshort) SQEServer::BuildSmallRawData(nsrwd, "SCNT");
-	else SQEServer::BuildSmallRawData(nsrwd, "LCNT");
+	SQEServer::BuildSmallRawData(nsrwd, type.data());
 	pcnt_sock->SendRAW(nsrwd.msg, nsrwd.msg_size);
 	Server::freeRawdataServer(nsrwd); 
 }
@@ -1170,6 +1303,7 @@ void *clientWaitDeamon(void *pvclt){
     client_register *pclr = (client_register *)pcti->args;
     SocketTCPClient *pcnt_sock = nullptr;
     bool if_success = false;
+	//尝试主动连接客户端
     printf("Connecting client %s[%s].\n",pclr->name.data(),pclr->tag.data());
     for(int i = 0; i < 8; i++){
         if(tryConnection(&pcnt_sock, pclr)){
@@ -1181,6 +1315,14 @@ void *clientWaitDeamon(void *pvclt){
     }
     if(!if_success){
         printf("Fail To Get Register.\n");
+		//更新登录信息
+		string sql_quote = "update register_info set status = 0 where client_id = ?1";
+		sqlite3_stmt *psqlsmt;
+		const char *pzTail;
+		sqlite3_prepare(pclr->psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+		sqlite3_bind_int64(psqlsmt, 1, pclr->client_id);
+		sqlite3_step(psqlsmt);
+		sqlite3_finalize(psqlsmt);
         delete pclr;
         clockThreadFinish(pcti->tid);
         pthread_exit(NULL);
@@ -1208,7 +1350,7 @@ void *clientWaitDeamon(void *pvclt){
 	SQEServer::Post2SignedRawData(*ncryp, pclr->key, *pnrwd);
 
 	//发送连接属性信息
-	SQEServer::SendConnectionInfo(pcnt_sock,true);
+	SQEServer::SendConnectionInfo(pcnt_sock,"SCNT");
 	//等待反馈
 	if (resFromClient(pcnt_sock)) {
 		pcnt_sock->SendRAW(pnrwd->msg, pnrwd->msg_size);
@@ -1216,13 +1358,21 @@ void *clientWaitDeamon(void *pvclt){
 	}
 	else {
 		//注册连接未被识别
-		error::printError("Client connection error.");
+		error::printError("client connection error.");
 		delete pclr;
 		delete pnrwd;
 		delete ncryp;
 		clockThreadFinish(pcti->tid);
 		pthread_exit(NULL);
 	}
+
+	string sql_quote = "update register_info set status = 1 where client_id = ?1";
+	sqlite3_stmt *psqlsmt;
+	const char *pzTail;
+	sqlite3_prepare(pclr->psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+	sqlite3_bind_int64(psqlsmt, 1, pclr->client_id);
+	sqlite3_step(psqlsmt);
+	sqlite3_finalize(psqlsmt);
 	
     //建立客户端连接管理信息提供结构
     client_listen *pcltl = new client_listen();
@@ -1243,6 +1393,15 @@ void *clientWaitDeamon(void *pvclt){
         sleep(1);
         if(pcltl->if_connected == false){
             printf("Register lost %s[%s]\n",pclr->name.data(),pclr->tag.data());
+			//更新登录信息
+			string sql_quote = "update register_info set status = 0 where client_id = ?1";
+			sqlite3_stmt *psqlsmt;
+			const char *pzTail;
+			sqlite3_prepare(pclr->psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+			sqlite3_bind_int64(psqlsmt, 1, pclr->client_id);
+			sqlite3_step(psqlsmt);
+			sqlite3_finalize(psqlsmt);
+			//服务端销户?
             break;
         }
     }

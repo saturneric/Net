@@ -171,6 +171,7 @@ public:
     ssize_t RecvRAW(char **p_rdt, Addr &taddr);
     ssize_t RecvRAW_SM(char **p_rdt, Addr &taddr);
     void SendRespond(string &str);
+
 };
 
 //TCP客户端套接字类

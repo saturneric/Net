@@ -120,12 +120,38 @@ ssize_t SocketUDPClient::SendRAW(char *buff, unsigned long size){
 }
 
 ssize_t SocketTCPClient::SendRAW(char *buff, unsigned long size){
-    ssize_t send_size = send(client_sfd, buff, size, 0);
-    /*if(send_size < 0){
-        printf("Error[%u]:",errno);
-        perror("send");
-    }*/
-    return send_size;
+	//对于长数据进行分段发送
+	if (size > 1023) {
+		ssize_t idx = 0, nidx = 0;
+		Byte vbuff[1024], gbuff[1024];
+		while (idx < size-1) {
+			if (!idx) memcpy(vbuff, "DSAT", sizeof(uint32_t));
+			else  memcpy(vbuff, "DCST", sizeof(uint32_t));
+			if (idx + 1000 < size - 1) {
+				nidx = idx + 1000;
+				memcpy(vbuff + sizeof(uint32_t) + nidx - idx + 1, "DCTN", sizeof(uint32_t));
+			}
+			else {
+				nidx = size - 1;
+				memcpy(vbuff + sizeof(uint32_t) + nidx - idx + 1, "DFSH", sizeof(uint32_t));
+			}
+			memcpy(vbuff + sizeof(uint32_t), buff + idx, nidx - idx + 1);
+			
+
+			send(client_sfd, vbuff, 2 * sizeof(uint32_t) + nidx - idx + 1, 0);
+			int grtn = recv(client_sfd, gbuff, BUFSIZ,0);
+			if (grtn > 0 && !memcmp(gbuff, "DGET", sizeof(uint32_t)));
+			else {
+				return -1;
+			}
+			idx = nidx + 1;
+		}
+		return size;
+	}
+	else {
+		ssize_t send_size = send(client_sfd, buff, size, 0);
+		return send_size;
+	}
 }
 
 void SocketClient::SetSendSockAddr(struct sockaddr_in tsi){
@@ -136,15 +162,42 @@ void SocketTCPClient::Close(void){
     close(client_sfd);
 }
 
+//长连接数据接收
 ssize_t SocketTCPCServer::RecvRAW_SM(char **p_rdt, Addr &taddr){
-    ssize_t tmp_bdtas = recv(data_sfd, buff, BUFSIZ, 0);
-    if (tmp_bdtas > 0) {
-        *p_rdt = (char *)malloc(tmp_bdtas);
-        memcpy(*p_rdt, buff, tmp_bdtas);
-    }
-    return tmp_bdtas;
+	ssize_t bdtas = 0, tmp_bdtas;
+	*p_rdt = nullptr;
+	bool dsat = false, dfsh = false, if_signal = false;
+	while (!dfsh && (tmp_bdtas = recv(data_sfd, buff, BUFSIZ, 0)) > 0) {
+		if (!memcmp(buff, "NETC", sizeof(uint32_t))) {
+			dsat = true;
+			dfsh = true;
+			if_signal = true;
+		}
+		if (!memcmp(buff, "DSAT", sizeof(uint32_t))) dsat = true;
+		if (!memcmp(buff+tmp_bdtas-sizeof(uint32_t), "DFSH", sizeof(uint32_t))) dfsh = true;
+		if (dsat) {
+			send(data_sfd, "DGET", sizeof(uint32_t), 0);
+			if (*p_rdt == nullptr) {
+				if (if_signal) {
+					*p_rdt = (char *)malloc(tmp_bdtas);
+					memcpy(*p_rdt, buff, tmp_bdtas);
+					bdtas += tmp_bdtas;
+					continue;
+				}
+				*p_rdt = (char *)malloc(tmp_bdtas - 2 * sizeof(uint32_t));
+				memcpy(*p_rdt, buff + sizeof(uint32_t), tmp_bdtas - 2 * sizeof(uint32_t));
+			}
+			else {
+				*p_rdt = (char *)realloc(*p_rdt, bdtas + tmp_bdtas - 2 * sizeof(uint32_t));
+				memcpy(*p_rdt + bdtas, buff + sizeof(uint32_t), tmp_bdtas - 2 * sizeof(uint32_t));
+			}
+		}
+		bdtas += tmp_bdtas;
+	}
+	return bdtas;
 }
 
+//短连接数据接收
 ssize_t SocketTCPCServer::RecvRAW(char **p_rdt, Addr &taddr){
     ssize_t bdtas = 0 ,tmp_bdtas;
     *p_rdt = nullptr;
@@ -178,7 +231,7 @@ void SocketTCPCServer::CloseConnection(void){
     close(data_sfd);
 }
 void SocketTCPCServer::Close(void) {
-	close(server_sfd);
+	shutdown(server_sfd, SHUT_RDWR);
 }
 
 

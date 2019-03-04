@@ -303,6 +303,7 @@ int set(string instruct, vector<string> &configs, vector<string> &lconfigs, vect
 int server(string instruct, vector<string> &configs, vector<string> &lconfigs, vector<string> &targets){
     initClock();
     setThreadsClock();
+	signal(SIGPIPE, SIG_IGN);
     if(targets.size() == 0){
         //Server nsvr;
         //setServerClock(&nsvr, 3);
@@ -468,55 +469,72 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
     nclt.SetPublicKey(*ppbc);
     sqlite3_finalize(psqlsmt);
     
-    aes_key256 naeskey;
-    nclt.SetAESKey(naeskey);
-    
-    string reqstr = " {\"key\":null, \"name\":null, \"tag\":null, \"sqe_key\":null, \"listen_port\": null,\"listen_ip\":null}";
-    
-    Document reqdata;
-    if(reqdata.Parse(reqstr.data()).HasParseError()) throw "fail to parse into json";
-	
-//    生成并传递端对端加密报文密钥
-    reqdata["key"].SetArray();
-    Value &tmp_key = reqdata["key"];
-    const uint8_t *p_key = naeskey.GetKey();
-    Document::AllocatorType& allocator = reqdata.GetAllocator();
-    for (int idx = 0; idx <32; idx++) {
-        tmp_key.PushBack(p_key[idx],allocator);
-    }
-	
-	
-    reqdata["name"].SetString(nclt.name.data(),(uint32_t)nclt.name.size());
-    reqdata["tag"].SetString(nclt.tag.data(),(uint32_t)nclt.tag.size());
-    reqdata["sqe_key"].SetString(nclt.sqe_key.data(), (uint32_t)nclt.sqe_key.size());
-	//设置TCP监听端口
-    reqdata["listen_port"].SetInt(9052);
-	
-	
-    //如果强制指定客户端IP地址
-    string ip;
-    if(if_setip) ip = set_ip;
-    else ip = "127.0.0.1";
-	
-    reqdata["listen_ip"].SetString(ip.data(),(uint32_t)ip.size());
-	
+	//检测本地的注册信息
+	sql_quote = "select count(name) from sqlite_master where name = \"client_register_info\"";
+	sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+	if (sqlite3_step(psqlsmt) != SQLITE_ROW) {
+		sql::printError(psql);
+		throw "database is abnormal";
+	}
+	int if_find = sqlite3_column_int(psqlsmt, 0);
+	if (if_find) {
+		//如果本地已经有注册信息
 
-    //构造请求
-    StringBuffer strbuff;
-	Writer<StringBuffer> writer(strbuff);
-    reqdata.Accept(writer);
-    string json_str = strbuff.GetString();
+	}
+	else {
+		//如果本地没有注册信息
+		//向主广场服务器注册
+		aes_key256 naeskey;
+		nclt.SetAESKey(naeskey);
 
-	printf("Connecting...\n");
-//    已获得主广场服务器的密钥，进行启动客户端守护进程前的准备工作
-    nclt.NewRequest(&preq, msqe_ip, msqe_port, "private request", json_str, true);
-    nclt.NewRequestListener(preq, 44, psql,registerSQECallback);
+		string reqstr = " {\"key\":null, \"name\":null, \"tag\":null, \"sqe_key\":null, \"listen_port\": null,\"listen_ip\":null}";
 
-    //等待主广场服务器回应
-    if_wait = 1;
-    while (if_wait == 1) {
-        sleep(1);
-    }
+		Document reqdata;
+		if (reqdata.Parse(reqstr.data()).HasParseError()) throw "fail to parse into json";
+
+		//    生成并传递端对端加密报文密钥
+		reqdata["key"].SetArray();
+		Value &tmp_key = reqdata["key"];
+		const uint8_t *p_key = naeskey.GetKey();
+		Document::AllocatorType& allocator = reqdata.GetAllocator();
+		for (int idx = 0; idx < 32; idx++) {
+			tmp_key.PushBack(p_key[idx], allocator);
+		}
+
+
+		reqdata["name"].SetString(nclt.name.data(), (uint32_t)nclt.name.size());
+		reqdata["tag"].SetString(nclt.tag.data(), (uint32_t)nclt.tag.size());
+		reqdata["sqe_key"].SetString(nclt.sqe_key.data(), (uint32_t)nclt.sqe_key.size());
+		//设置TCP监听端口
+		reqdata["listen_port"].SetInt(9052);
+
+
+		//如果强制指定客户端IP地址
+		string ip;
+		if (if_setip) ip = set_ip;
+		else ip = "127.0.0.1";
+
+		reqdata["listen_ip"].SetString(ip.data(), (uint32_t)ip.size());
+
+
+		//构造请求
+		StringBuffer strbuff;
+		Writer<StringBuffer> writer(strbuff);
+		reqdata.Accept(writer);
+		string json_str = strbuff.GetString();
+
+		printf("Connecting...\n");
+		//    已获得主广场服务器的密钥，进行启动客户端守护进程前的准备工作
+		nclt.NewRequest(&preq, msqe_ip, msqe_port, "private request", json_str, true);
+		nclt.NewRequestListener(preq, 44, psql, registerSQECallback);
+
+		//等待主广场服务器回应
+		if_wait = 1;
+		while (if_wait == 1) {
+			sleep(1);
+		}
+	}
+	//得到服务器回应
     if (!if_wait) {
 		
 //        成功注册
@@ -540,23 +558,45 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
             }
 
 			//创建客户端连接管理线程
+			pthread_t beat_pid = 0, listen_pid = 0, send_pid = 0;
 			connection_listener *pncl = new connection_listener();
 			pncl->client_addr = nclt.server_cnt->GetClientAddr();
 			pncl->data_sfd = nclt.server_cnt->GetDataSFD();
 			pncl->key = nclt.post_key;
 			pncl->father_buff = buff;
 			pncl->server_cnt = nclt.server_cnt;
+			pncl->beat_pid = &beat_pid;
+			pncl->listen_pid = &listen_pid;
+			pncl->send_pid = &send_pid;
+			pncl->p_ci = new connection_info();
 
 			pthread_create(&pncl->pid, NULL, clientServiceDeamon, pncl);
-
+			
 			memset(buff, 0, sizeof(uint32_t));
             while (1) {
+				//获得连接状态
+				if (!memcmp(buff, "CIFO", sizeof(uint32_t))) {
+					memcpy(buff, "RCFO", sizeof(uint32_t));
+					memcpy(buff+sizeof(uint32_t), pncl->p_ci, sizeof(connection_info));
+				}
 				//检测父进程信号
-                if(!memcmp(buff, "Exit", sizeof(uint32_t))){
+                else if(!memcmp(buff, "Exit", sizeof(uint32_t))){
 					pncl->if_active = false;
-					
-					pthread_join(pncl->pid, NULL);
+
+					//注销所有主要线程
+					if(pncl->p_ci->if_beat) pthread_cancel(beat_pid);
+					if (pncl->p_ci->if_listen) pthread_cancel(listen_pid);
+					if (pncl->p_ci->if_send) pthread_cancel(send_pid);
+					pthread_cancel(pncl->pid);
+
 					nclt.server_cnt->Close();
+					//关闭所有打开的文件描述符
+					int fd = 0;
+					int fd_limit = sysconf(_SC_OPEN_MAX);
+					while (fd < fd_limit) close(fd++);
+
+					
+					free(pncl->p_ci);
 					delete pncl;
 					memcpy(buff, "SEXT", sizeof(uint32_t));
 					//断开共享内存连接
@@ -578,21 +618,62 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
 				}
 				usleep(1000);
 			}
-			error::printSuccess("\nShell For Client: ");
+			error::printSuccess("\n-------------------------------\nShell For Client: \n-------------------------------\n");
 			string cmdstr;
 			char cmd[1024];
             while (1) {
                 printf(">");
 				gets_s(cmd,1024);
 				cmdstr = cmd;
-                if(cmdstr == "Exit"){
+                if(cmdstr == "stop"){
 					error::printInfo("Start to stop service...");
                     memcpy(buff, "Exit", sizeof(uint32_t));
 					while (memcmp(buff, "SEXT", sizeof(uint32_t))) {
-						sleep(10000);
+						usleep(1000);
 					}
 					error::printInfo("Service stopped.");
                 }
+				else if(cmdstr == "status"){
+					memcpy(buff, "CIFO", sizeof(uint32_t));
+					while (memcmp(buff, "RCFO", sizeof(uint32_t))) {
+						usleep(1000);
+					}
+					connection_info n_ci;
+					memcpy(&n_ci, buff + sizeof(uint32_t), sizeof(connection_info));
+					memset(buff, 0, sizeof(uint32_t));
+					printf("STATUS:\n");
+					if (n_ci.if_beat) error::printSuccess("*Beat");
+					else error::printRed("*Beat");
+					if (n_ci.if_listen) error::printSuccess("*Listen");
+					else error::printRed("*Listen");
+					if (n_ci.if_send) error::printSuccess("*Send");
+					else error::printRed("*Send");
+					
+					
+				}
+				else if (cmdstr == "quit") {
+					//关闭所有打开的文件描述符
+					int fd = 0;
+					//nclt.server_cnt->Close();
+					int fd_limit = sysconf(_SC_OPEN_MAX);
+					while (fd < fd_limit) close(fd++);
+					shmdt(buff);
+					exit(0);
+				}
+				else if (cmdstr == "ping") {
+					if (memcmp(buff, "WAIT", sizeof(uint32_t))) {
+						raw_data nrwd;
+						SQEServer::BuildSmallRawData(nrwd, "PING");
+						memcpy(buff, "WAIT", sizeof(uint32_t));
+						memcpy(buff+sizeof(uint32_t), &nrwd.msg_size, sizeof(uint64_t));
+						memcpy(buff + 3 * sizeof(uint32_t), nrwd.msg, nrwd.msg_size);
+						memcpy(buff + 3 * sizeof(uint32_t) + nrwd.msg_size, "TADS", sizeof(uint32_t));
+						memcpy(buff, "SDAT", sizeof(uint32_t));
+						Server::freeRawdataServer(nrwd);
+					}
+					
+
+				}
                 
             }
         }

@@ -12,13 +12,13 @@ extern int if_wait;
 
 namespace error {
     void printError(string error_info){
-        printf("\033[31mError: %s\n\033[0m",error_info.data());
+        printf("\033[31mError: %s\033[0m\n",error_info.data());
     }
     void printWarning(string warning_info){
-        printf("\033[33mWarning: %s\n\033[0m",warning_info.data());
+        printf("\033[33mWarning: %s\033[0m\n",warning_info.data());
     }
     void printSuccess(string succes_info){
-        printf("\033[32m%s\n\033[0m",succes_info.data());
+        printf("\033[32m%s\033[0m\n",succes_info.data());
     }
 	void printRed(string red_info) {
 		printf("\033[31m%s\n\033[0m", red_info.data());
@@ -58,11 +58,10 @@ void registerSQECallback(respond *pres,void *args){
         resdoc.Parse(resjson.data());
         string status = resdoc["status"].GetString();
         if(status == "ok"){
-            printf("Register succeed.\n");
             if_wait = 0;
         }
         else{
-            printf("Register Fail.\n");
+			error::printError("register failed.");
             if_wait = -1;
         }
     }
@@ -83,7 +82,6 @@ void *connectionDeamon(void *args){
     SocketTCPCServer ntcps;
     ntcps.SetDataSFD(pcntl->data_sfd);
     ntcps.SetClientAddr(pcntl->client_addr);
-
 //    获得连接的类型是长链还是断链
     size = ntcps.RecvRAW_SM(&buff, t_addr);
     raw_data *pnrwd = new raw_data();
@@ -94,22 +92,45 @@ void *connectionDeamon(void *args){
     if(Server::CheckRawMsg(buff, size)){
         Server::ProcessSignedRawMsg(buff, size, *pnrwd);
         if(!memcmp(&pnrwd->info, "LCNT", sizeof(uint32_t))){
+			//接收长连接
             if_sm = false;
         }
         else if(!memcmp(&pnrwd->info, "SCNT", sizeof(uint32_t))){
+			//接收短连接
             if_sm = true;
 			ntcps.SendRespond(dget);
         }
         else if(!memcmp(&pnrwd->info, "CNTL", sizeof(uint32_t))){
-            if_sm = true;
-            //printf("Listen Connection From Server\n");
-            
-            ntcps.CloseConnection();
-            pthread_exit(NULL);
+			//发送长连接
+			if_sm = false;
+			pcntl->p_ci->if_listen = true;
+			*pcntl->listen_pid = pcntl->pid;
+			pcntl->write_buff = pcntl->father_buff;
+			while (1) {
+				if (*pcntl->pif_atv == false) {
+					close(pcntl->data_sfd);
+					pcntl->p_ci->if_listen = false;
+					delete pcntl;
+					pthread_exit(NULL);
+				}
+				if (!memcmp(pcntl->write_buff, "SDAT", sizeof(uint32_t))) {
+					uint32_t nsrwd_size = 0;
+					Byte buff[BUFSIZ];
+					memcpy(&nsrwd_size, pcntl->write_buff + sizeof(uint32_t), sizeof(uint32_t));
+					if (!memcmp(pcntl->write_buff + 3 * sizeof(uint32_t) + nsrwd_size, "TADS", sizeof(uint32_t))) {
+						memcpy(buff, pcntl->write_buff + 3 * sizeof(uint32_t), nsrwd_size);
+						send(pcntl->data_sfd, buff, nsrwd_size, 0);
+					}
+					else error::printError("buffer error.");
+					memset(pcntl->write_buff, 0, sizeof(uint32_t));
+				}
+				usleep(1000);
+				
+			}
         }
         else{
 			//断开无效连接
-            printf("Connection Illegal.\n");
+            printf("Connection Info Illegal.\n");
 			delete pnrwd;
 			close(pcntl->data_sfd);
 			delete pcntl;
@@ -123,6 +144,7 @@ void *connectionDeamon(void *args){
         delete pnrwd;
         pthread_exit(NULL);
     }
+	Server::freeRawdataServer(*pnrwd);
     delete pnrwd;
     
     while (1) {
@@ -134,7 +156,6 @@ void *connectionDeamon(void *args){
 		//区分长连接与短连接
         if(if_sm) size = ntcps.RecvRAW(&buff, t_addr);
         else size = ntcps.RecvRAW_SM(&buff, t_addr);
-        
         if(size > 0){
 			raw_data *pnrwd = new raw_data();
 			packet *nppkt = new packet();
@@ -149,8 +170,10 @@ void *connectionDeamon(void *args){
                     if(!memcmp(&pncryp->type, "JRES", sizeof(uint32_t))){
 						//自我解析
 						pncryp->SelfParse();
+						printf("Register Status: ");
                         if(pncryp->edoc["status"].GetString() == string("ok")){
-							error::printSuccess("Register Successful.");
+							error::printSuccess("Succeed");
+							error::printInfo("\nStart Command Line Tools...\n");
 							//进入客户端管理终端
 							memcpy(pcntl->father_buff,"D_OK", sizeof(uint32_t));
                         }
@@ -163,18 +186,15 @@ void *connectionDeamon(void *args){
                 }
 				//心跳连接
                 else if(!memcmp(&pnrwd->info, "BEAT", sizeof(uint32_t))){
-                    //printf("Connection Beated.\n");
+					
+					if (!pcntl->p_ci->if_beat) {
+						pcntl->p_ci->if_beat = true;
+						*pcntl->beat_pid = pcntl->pid;
+						
+					}
                 }
                 Server::freeRawdataServer(*pnrwd);
                 Server::freePcaketServer(*nppkt);
-            }
-            else if(size < 0){
-                //printf("Lost Connection From Server.\n");
-                delete pnrwd;
-                delete pncryp;
-                delete nppkt;
-                delete pcntl;
-                break;
             }
             free(buff);
 			delete pnrwd;
@@ -190,18 +210,25 @@ void *connectionDeamon(void *args){
 
 void *clientServiceDeamon(void *arg) {
 	connection_listener *pclst = (connection_listener *)arg;
+	
 	while (1) {
 		if (pclst->if_active == false) {
 			break;
 		}
+		//接受新连接
 		pclst->server_cnt->Accept();
-		//构造连接守护子进程
+
+		//构造连接守护子线程
 		connection_listener *pncl = new connection_listener();
 		pncl->client_addr = pclst->client_addr;
 		pncl->data_sfd = pclst->server_cnt->GetDataSFD();
 		pncl->key = pclst->key;
 		pncl->father_buff = pclst->father_buff;
 		pncl->pif_atv = &pclst->if_active;
+		pncl->p_ci = pclst->p_ci;
+		pncl->beat_pid = pclst->beat_pid;
+		pncl->listen_pid = pclst->listen_pid;
+		pncl->send_pid = pclst->send_pid;
 
 		pthread_attr_t attr;
 		pthread_attr_init(&attr);

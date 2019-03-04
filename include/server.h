@@ -115,7 +115,7 @@ public:
     uint32_t info;
 //    信息串
     char *msg = NULL;
-    unsigned long msg_size = 0;
+	unsigned long msg_size = 0;
 //    来源ip地址
     struct sockaddr_in address;
 //    用简单字符串直接出适合
@@ -214,6 +214,7 @@ struct client_register{
     Addr t_addr;
 //    守护线程ID
     pthread_t tid;
+	sqlite3 *psql;
 };
 
 struct client_listen{
@@ -225,6 +226,12 @@ struct client_listen{
     client_register *pcltr;
 };
 
+struct connection_info {
+	bool if_listen = false;
+	bool if_beat = false;
+	bool if_send = false;
+};
+
 struct connection_listener{
     int data_sfd;
     Addr client_addr;
@@ -234,6 +241,9 @@ struct connection_listener{
 	SocketTCPCServer *server_cnt = nullptr;
 	bool if_active = true;
 	bool *pif_atv = nullptr;
+	void *write_buff = nullptr;
+	struct connection_info *p_ci = nullptr;
+	pthread_t *beat_pid  = nullptr, *listen_pid = nullptr, *send_pid = nullptr;
 };
 
 //通用服务器类
@@ -338,7 +348,7 @@ public:
     static void Post2Packet(packet &pkt, encrypt_post &pst, aes_key256 &key);
     static void Packet2Post(packet &pkt, encrypt_post &pst, aes_key256 &key);
     static void GetPostInfo(packet &pkt, encrypt_post &pst);
-	static void SendConnectionInfo(SocketTCPClient *pcnt_sock, bool ifshort);
+	static void SendConnectionInfo(SocketTCPClient *pcnt_sock, string type);
 };
 
 //通用客户端类
