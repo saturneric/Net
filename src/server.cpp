@@ -1330,17 +1330,14 @@ void *clientWaitDeamon(void *pvclt){
     
     printf("Get Register: %s[%s]\n",pclr->name.data(),pclr->tag.data());
 //    注册信息报文
-    string res_type = "{\"status\":\"ok\",\"passwd\":null}";
+    string res_type = "{\"status\":\"ok\",\"passwd\":null,\"client_id\":null}";
 	encrypt_post *ncryp = new encrypt_post();
 
     ncryp->Parse(res_type);
 
-    uint8_t *ppidx = (uint8_t *)&pclr->passwd;
-    ncryp->edoc["passwd"].SetArray();
-    Document::AllocatorType &allocator = ncryp->edoc.GetAllocator();
-    for(int i = 0; i < 8; i++){
-		ncryp->edoc["passwd"].PushBack(ppidx[i], allocator);
-    }
+	ncryp->edoc["client_id"].SetInt64(pclr->client_id);
+	ncryp->edoc["passwd"].SetInt64(pclr->passwd);
+
 	string send_data;
 	ncryp->GetJSON(send_data);
 	

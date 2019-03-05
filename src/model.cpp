@@ -51,6 +51,27 @@ void getSQEPublicKey(respond *pres,void *args){
     else if_wait = -1;
 }
 
+void loginSQECallback(respond *pres, void *args) {
+	if (pres != nullptr) {
+		string resjson = string(pres->buff, pres->buff_size);
+		Document resdoc;
+		resdoc.Parse(resjson.data());
+		string status = resdoc["status"].GetString();
+		if (status == "ok") {
+			error::printSuccess("login succeed.");
+			if_wait = 0;
+		}
+		else {
+			error::printError("login failed.");
+			if_wait = -1;
+		}
+	}
+	else {
+		if_wait = -1;
+		printf("Request timeout.\n");
+	}
+}
+
 void registerSQECallback(respond *pres,void *args){
     if(pres != nullptr){
         string resjson = string(pres->buff,pres->buff_size);
@@ -58,6 +79,32 @@ void registerSQECallback(respond *pres,void *args){
         resdoc.Parse(resjson.data());
         string status = resdoc["status"].GetString();
         if(status == "ok"){
+			sqlite3 *psql = (sqlite3 *)args;
+			try {
+				//创建客户端描述信息数据表
+				sql::table_create(psql, "client_register_info", {
+					{"client_id","INT"},
+					{"name","TEXT"},
+					{"tag","TEXT"},
+					{"key","NONE"},
+					{"passwd","INT"},
+					{"status","INT"},
+					});
+			}
+			catch (const char *errstr) {
+				string errinfo = errstr;
+				if (errinfo == "fail to create table") {
+					error::printInfo("Table is already created.");
+
+					sqlite3_stmt *psqlsmt;
+					const char *pzTail;
+					string sql_quote = "delete from client_register_info;";
+					
+					sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+					sqlite3_step(psqlsmt);
+					sqlite3_finalize(psqlsmt);
+				}
+			}
             if_wait = 0;
         }
         else{
@@ -172,7 +219,25 @@ void *connectionDeamon(void *args){
 						pncryp->SelfParse();
 						printf("Register Status: ");
                         if(pncryp->edoc["status"].GetString() == string("ok")){
-							error::printSuccess("Succeed");
+							uint64_t client_id = pncryp->edoc["client_id"].GetInt64();
+							uint64_t passwd = pncryp->edoc["passwd"].GetInt64();
+							sqlite3_stmt *psqlsmt;
+							const char *pzTail;
+							string sql_quote = "update client_register_info set client_id = ?1,passwd = ?2,status = 1 where rowid = 1;";
+							sqlite3_prepare(pcntl->psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+							sqlite3_bind_int64(psqlsmt, 1, client_id);
+							sqlite3_bind_int64(psqlsmt, 2, passwd);
+							if (sqlite3_step(psqlsmt) == SQLITE_OK) {
+								error::printSuccess("Succeed");
+							}
+							else {
+								error::printRed("Failed");
+								sql::printError(pcntl->psql);
+							}
+							sqlite3_finalize(psqlsmt);
+
+
+
 							error::printInfo("\nStart Command Line Tools...\n");
 							//进入客户端管理终端
 							memcpy(pcntl->father_buff,"D_OK", sizeof(uint32_t));
@@ -222,6 +287,10 @@ void *clientServiceDeamon(void *arg) {
 		connection_listener *pncl = new connection_listener();
 		pncl->client_addr = pclst->client_addr;
 		pncl->data_sfd = pclst->server_cnt->GetDataSFD();
+		//设置超时
+		struct timeval timeout = { 3,0 };
+		setsockopt(pncl->data_sfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(struct timeval));
+
 		pncl->key = pclst->key;
 		pncl->father_buff = pclst->father_buff;
 		pncl->pif_atv = &pclst->if_active;
@@ -229,6 +298,7 @@ void *clientServiceDeamon(void *arg) {
 		pncl->beat_pid = pclst->beat_pid;
 		pncl->listen_pid = pclst->listen_pid;
 		pncl->send_pid = pclst->send_pid;
+		pncl->psql = pclst->psql;
 
 		pthread_attr_t attr;
 		pthread_attr_init(&attr);

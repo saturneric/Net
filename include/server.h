@@ -244,6 +244,7 @@ struct connection_listener{
 	void *write_buff = nullptr;
 	struct connection_info *p_ci = nullptr;
 	pthread_t *beat_pid  = nullptr, *listen_pid = nullptr, *send_pid = nullptr;
+	sqlite3 *psql;
 };
 
 //通用服务器类

@@ -149,7 +149,11 @@ public:
         if(!~server_sfd) throw "fail to get server sfd";
 //        绑定IP地址与端口
         if(!~bind(server_sfd, server_addr.RawObj(), server_addr.Size())) throw "fail to bind";
-//        设置接受信息非阻塞
+
+		//设置超时
+		struct timeval timeout = { 3,0 };
+		setsockopt(server_sfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(struct timeval));
+
     }
     SocketTCPCServer(void):SocketServer(){
         data_sfd = -1;
@@ -194,6 +198,9 @@ public:
         //send_addr.SetPort(9053);
 //        建立TCP连接
         if(connect(client_sfd,send_addr.RawObj(),send_addr.Size()) < 0) throw "fail to connect";
+		struct timeval timeout = { 3,0 };
+		//设置超时
+		setsockopt(client_sfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(struct timeval));
     }
 //    发送简单字符串数据
     void Send(string str);

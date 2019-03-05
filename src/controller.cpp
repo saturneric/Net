@@ -478,10 +478,58 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
 	}
 	int if_find = sqlite3_column_int(psqlsmt, 0);
 	if (if_find) {
+		error::printInfo("Doing Login");
 		//如果本地已经有注册信息
+		string reqstr = " {\"passwd\":null, \"client_id\":null}";
+		string sql_quote = "SELECT * from client_register_info where rowid = 1;";
+		sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+		sqlite3_step(psqlsmt);
+		int status = sqlite3_column_int(psqlsmt, 5);
+		if (status == 1) {
+			error::printSuccess("[GET INFO]");
+			uint64_t client_id = sqlite3_column_int64(psqlsmt, 0);
+			uint64_t passwd = sqlite3_column_int64(psqlsmt, 4);
+			string name = (const char *)sqlite3_column_text(psqlsmt, 1);
+			string tag = (const char *)sqlite3_column_text(psqlsmt, 2);
+
+			aes_key256 naeskey;
+			const void *key_buff = sqlite3_column_blob(psqlsmt, 3);
+			memcpy(naeskey.key, key_buff, sizeof(uint64_t) * 4);
+			nclt.SetAESKey(naeskey);
+
+			error::printInfo("Client_ID: " + std::to_string(client_id));
+			error::printInfo("Passwd: " + std::to_string(passwd));
+			error::printInfo("Name: " + name);
+			error::printInfo("Tag: " + tag);
+			
+			request *pnreq;
+			nclt.NewRequest(&pnreq, msqe_ip, msqe_port, "client login", "", true);
+			pnreq->JsonParse(reqstr);
+			pnreq->req_doc["client_id"].SetInt64(client_id);
+			pnreq->req_doc["passwd"].SetInt64(passwd);
+			pnreq->Json2Data();
+
+			nclt.NewRequestListener(pnreq, 44, psql, loginSQECallback);
+			//等待主广场服务器回应
+			if_wait = 1;
+			while (if_wait == 1) {
+				sleep(1);
+			}
+			//成功注册
+			if (!if_wait) {
+
+			}
+
+		}
+		else {
+			error::printError("Register information is broken. Strat to do register.");
+			if_find = 0;
+		}
+		sqlite3_finalize(psqlsmt);
 
 	}
-	else {
+	if(!if_find){
+		error::printInfo("Doing Register");
 		//如果本地没有注册信息
 		//向主广场服务器注册
 		aes_key256 naeskey;
@@ -533,21 +581,45 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
 		while (if_wait == 1) {
 			sleep(1);
 		}
+		//成功注册
+		if (!if_wait) {
+			sqlite3_stmt *psqlsmt;
+			sql::insert_info(psql, &psqlsmt, "client_register_info", {
+				{"name","?1"},
+				{"tag","?2"},
+				{"key","?3"},
+				{"status","0"},
+			});
+			sqlite3_bind_text(psqlsmt, 1, nclt.name.data(), -1, SQLITE_TRANSIENT);
+			sqlite3_bind_text(psqlsmt, 2, nclt.tag.data(), -1, SQLITE_TRANSIENT);
+			sqlite3_bind_blob(psqlsmt, 3, nclt.post_key.GetKey(), sizeof(uint64_t) * 4, SQLITE_TRANSIENT);
+			sqlite3_step(psqlsmt);
+			sqlite3_finalize(psqlsmt);
+		}
+		else if (~!if_wait) {
+			error::printError("fail to do register.");
+			return -1;
+		}
 	}
 	//得到服务器回应
     if (!if_wait) {
 		
-//        成功注册
+//        成功注册或者登录
         printf("Get Respond From Server.\n");
+		sqlite3_close(psql);
+
 //        创建守护进程
         int shmid = shmget((key_t)9058, 1024, 0666|IPC_CREAT);
         if(shmid == -1){
             printf("SHMAT Failed.\n");
         }
+
         pid_t fpid = fork();
         if(fpid == 0){
 			//守护进程
             printf("Client Register Deamon Has Been Created.\n");
+			sqlite3 *psql;
+			sqlite3_open("info.db", &psql);
             nclt.server_cnt = new SocketTCPCServer(9052);
             nclt.server_cnt->Listen();
 
@@ -569,6 +641,7 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
 			pncl->listen_pid = &listen_pid;
 			pncl->send_pid = &send_pid;
 			pncl->p_ci = new connection_info();
+			pncl->psql = psql;
 
 			pthread_create(&pncl->pid, NULL, clientServiceDeamon, pncl);
 			
@@ -642,14 +715,38 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
 					memcpy(&n_ci, buff + sizeof(uint32_t), sizeof(connection_info));
 					memset(buff, 0, sizeof(uint32_t));
 					printf("STATUS:\n");
-					if (n_ci.if_beat) error::printSuccess("*Beat");
-					else error::printRed("*Beat");
-					if (n_ci.if_listen) error::printSuccess("*Listen");
-					else error::printRed("*Listen");
-					if (n_ci.if_send) error::printSuccess("*Send");
-					else error::printRed("*Send");
+					if (n_ci.if_beat) error::printSuccess("(*)Beat");
+					else error::printRed("(*)Beat");
+					if (n_ci.if_listen) error::printSuccess("(*)Listen");
+					else error::printRed("(*)Listen");
+					if (n_ci.if_send) error::printSuccess("(*)Send");
+					else error::printRed("(*)Send");
 					
 					
+				}
+				else if (cmdstr == "info") {
+					sqlite3_open("info.db",&psql);
+					string sql_quote = "SELECT * from client_register_info where rowid = 1;";
+					sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
+					sqlite3_step(psqlsmt);
+					int status = sqlite3_column_int(psqlsmt, 5);
+					if (status == 1) {
+						error::printSuccess("[GET INFO]");
+						uint64_t client_id = sqlite3_column_int64(psqlsmt, 0);
+						uint64_t passwd = sqlite3_column_int64(psqlsmt, 4);
+						string name = (const char *)sqlite3_column_text(psqlsmt, 1);
+						string tag = (const char *)sqlite3_column_text(psqlsmt, 2);
+						error::printInfo("Client_ID: " + std::to_string(client_id));
+						error::printInfo("Passwd: " + std::to_string(passwd));
+						error::printInfo("Name: " + name);
+						error::printInfo("Tag: " + tag);
+
+					}
+					else {
+						error::printError("[NONE INFO]");
+					}
+					sqlite3_finalize(psqlsmt);
+
 				}
 				else if (cmdstr == "quit") {
 					//关闭所有打开的文件描述符
