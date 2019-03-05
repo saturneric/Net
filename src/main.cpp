@@ -80,6 +80,10 @@ int main(int argc, const char *argv[]){
 			if (istns.update != nullptr) rtn = istns.client(instruct, config, long_config, target);
 			else error::printError("Function not found.");
 		}
+        else if (instruct == "autoinit") {
+            //自动配置
+            
+        }
 		else {
 			printf("\033[33mInstruction \"%s\" doesn't make sense.\n\033[0m", instruct.data());
 		}

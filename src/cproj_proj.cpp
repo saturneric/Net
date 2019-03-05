@@ -246,7 +246,10 @@ void Proj::write_lib_info(void){
 #ifdef DEBUG
     printf("Writing Libfiles Information Into Database.\n");
 #endif
+    
+    
     for(auto lib : lib_index){
+        sql::exec(psql, "BEGIN;");
 //        链接数据
         sqlite3_bind_int(psqlsmt, 1, idx++);
         sqlite3_bind_text(psqlsmt, 2, lib.second.data(), -1, SQLITE_TRANSIENT);
@@ -264,8 +267,11 @@ void Proj::write_lib_info(void){
         }
         sqlite3_reset(psqlsmt);
         sqlite3_clear_bindings(psqlsmt);
+        sql::exec(psql, "COMMIT;");
     }
     sqlite3_finalize(psqlsmt);
+    
+    
 }
 
 //    写入入口函数信息到数据库中
@@ -284,6 +290,7 @@ void Proj::write_func_info(void){
     for(auto func : func_index){
         string src_file = func.second->funcs_src.find(func.first)->second;
         string lib_file = lib_index.find(src_file)->second;
+        sql::exec(psql, "BEGIN;");
         string sql_quote = "SELECT id FROM srcfiles WHERE name = "+sql::string_type(src_file)+";";
 //        查找源文件信息在数据库中的ID
         SQLCallBack *psqlcb =  sql::sql_exec(psql, sql_quote);
@@ -304,7 +311,9 @@ void Proj::write_func_info(void){
             throw "database abnormal";
         }
         delete psqlcb;
+        sql::exec(psql, "COMMIT;");
 //        查找动态链接库信息在数据库中的ID
+        sql::exec(psql, "BEGIN;");
         sql_quote = "SELECT id FROM libfiles WHERE name = "+sql::string_type(lib_file)+";";
         psqlcb =  sql::sql_exec(psql, sql_quote);
         if(psqlcb->size != 1){
@@ -324,6 +333,9 @@ void Proj::write_func_info(void){
             throw "database abnormal";
         }
         delete psqlcb;
+        sql::exec(psql, "COMMIT;");
+        
+        sql::exec(psql, "BEGIN;");
 //        链接数据
         sqlite3_bind_int(psqlsmt, 1, idx++);
         sqlite3_bind_text(psqlsmt, 2, func.first.data(), -1, SQLITE_TRANSIENT);
@@ -344,6 +356,8 @@ void Proj::write_func_info(void){
         }
         sqlite3_reset(psqlsmt);
         sqlite3_clear_bindings(psqlsmt);
+        sql::exec(psql, "COMMIT;");
+        
     }
     sqlite3_finalize(psqlsmt);
 }
@@ -353,8 +367,10 @@ void Proj::write_func_info(string func_name, Cpt *pcpt){
     string sql_quote2 = "SELECT * FROM functions ORDER BY id DESC limit 0,1;";
     const char *pzTail;
     sqlite3_stmt *psqlsmt2;
+    sql::exec(psql, "BEGIN;");
     sqlite3_prepare(psql, sql_quote2.data(), -1, &psqlsmt2, &pzTail);
     sqlite3_step(psqlsmt2);
+    sql::exec(psql, "COMMIT;");
     int idx = sqlite3_column_int(psqlsmt2, 0);
     sqlite3_finalize(psqlsmt2);
     
@@ -370,6 +386,8 @@ void Proj::write_func_info(string func_name, Cpt *pcpt){
 #endif
     string src_file = pcpt->funcs_src.find(func_name)->second;
     string lib_file = lib_index.find(src_file)->second;
+    
+    sql::exec(psql, "BEGIN;");
     string sql_quote = "SELECT id FROM srcfiles WHERE name = "+sql::string_type(src_file)+";";
     //        查找源文件信息在数据库中的ID
     SQLCallBack *psqlcb =  sql::sql_exec(psql, sql_quote);
@@ -390,6 +408,9 @@ void Proj::write_func_info(string func_name, Cpt *pcpt){
         throw "database abnormal";
     }
     delete psqlcb;
+    sql::exec(psql, "COMMIT;");
+    
+    sql::exec(psql, "BEGIN;");
     //        查找动态链接库信息在数据库中的ID
     sql_quote = "SELECT id FROM libfiles WHERE name = "+sql::string_type(lib_file)+";";
     psqlcb =  sql::sql_exec(psql, sql_quote);
@@ -410,6 +431,9 @@ void Proj::write_func_info(string func_name, Cpt *pcpt){
         throw "database abnormal";
     }
     delete psqlcb;
+    sql::exec(psql, "COMMIT;");
+    
+    sql::exec(psql, "BEGIN;");
     //        链接数据
     sqlite3_bind_int(psqlsmt, 1, ++idx);
     sqlite3_bind_text(psqlsmt, 2, func_name.data(), -1, SQLITE_TRANSIENT);
@@ -431,6 +455,7 @@ void Proj::write_func_info(string func_name, Cpt *pcpt){
     sqlite3_reset(psqlsmt);
     sqlite3_clear_bindings(psqlsmt);
     sqlite3_finalize(psqlsmt);
+    sql::exec(psql, "COMMIT;");
 }
 
 //写入口函数入输入输出参数信息到数据库中
@@ -482,7 +507,10 @@ void Proj::write_args_info_no_create_table(string func_name, Cpt *pcpt){
     printf("Writing Function Parameter (IN) Information Into Database (%s)\n",func_name.data());
 #endif
     //        写入输入参数
+    
     for(auto arg : *pfin){
+        
+        sql::exec(psql, "BEGIN;");
         //            连接数据
         sqlite3_bind_text(psqlsmt, 1, arg.type.data(), -1, SQLITE_TRANSIENT);
         sqlite3_bind_int(psqlsmt, 2, idx++);
@@ -504,7 +532,10 @@ void Proj::write_args_info_no_create_table(string func_name, Cpt *pcpt){
         }
         sqlite3_reset(psqlsmt);
         sqlite3_clear_bindings(psqlsmt);
+        sql::exec(psql, "COMMIT;");
+        
     }
+    
     
 #ifdef DEBUG
     printf("Writing Function Parameter (OUT) Information Into Database (%s)\n",func_name.data());
@@ -512,6 +543,7 @@ void Proj::write_args_info_no_create_table(string func_name, Cpt *pcpt){
     idx = 0;
     //        写入输入参数
     for(auto arg : *pfout){
+        sql::exec(psql, "BEGIN;");
         //            连接数据
         sqlite3_bind_text(psqlsmt, 1, arg.type.data(), -1, SQLITE_TRANSIENT);
         sqlite3_bind_int(psqlsmt, 2, idx++);
@@ -534,6 +566,7 @@ void Proj::write_args_info_no_create_table(string func_name, Cpt *pcpt){
         }
         sqlite3_reset(psqlsmt);
         sqlite3_clear_bindings(psqlsmt);
+        sql::exec(psql, "COMMIT;");
     }
     sqlite3_finalize(psqlsmt);
 }
@@ -558,6 +591,8 @@ void Proj::write_cpt_info(void){
         };
         string buff;
         read_settings(treal_path, buff);
+        
+        sql::exec(psql, "BEGIN;");
         sqlite3_bind_int(psqlsmt, 1, idx++);
         string md5;
         ComputeFile(treal_path.data(), md5);
@@ -578,6 +613,8 @@ void Proj::write_cpt_info(void){
         }
         sqlite3_reset(psqlsmt);
         sqlite3_clear_bindings(psqlsmt);
+        sql::exec(psql, "COMMIT;");
+        
     }
     sqlite3_finalize(psqlsmt);
 }
@@ -601,6 +638,8 @@ void Proj::write_proj_info(void){
     sqlite3_bind_blob(psqlsmt, 2, content.data(), (int)content.size(), SQLITE_TRANSIENT);
     string md5;
     ComputeFile(proj_path+"netc.proj", md5);
+    
+    sql::exec(psql, "BEGIN;");
     sqlite3_bind_text(psqlsmt, 3, md5.data(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(psqlsmt, 4, lib_path.data(), -1, SQLITE_TRANSIENT);
 //    执行SQL语句
@@ -618,7 +657,7 @@ void Proj::write_proj_info(void){
     sqlite3_reset(psqlsmt);
     sqlite3_clear_bindings(psqlsmt);
     sqlite3_finalize(psqlsmt);
-    
+    sql::exec(psql, "COMMIT;");
 }
 
 void Proj::check_database(void){
@@ -633,6 +672,7 @@ void Proj::check_database(void){
 #endif
     const char *tables[] = {"srcfiles","cptfiles","functions","projfile","libfiles","projfile"};
     for(auto strc : tables){
+        sql::exec(psql, "BEGIN;");
         sqlite3_bind_text(psqlsmt, 1, strc, -1, SQLITE_STATIC);
 //        执行SQL语句
         int rtn = sqlite3_step(psqlsmt);
@@ -656,6 +696,7 @@ void Proj::check_database(void){
         }
         sqlite3_reset(psqlsmt);
         sqlite3_clear_bindings(psqlsmt);
+        sql::exec(psql, "COMMIT;");
     }
     sqlite3_finalize(psqlsmt);
     
@@ -688,7 +729,7 @@ void Proj::check_database(void){
     };
     check_table(3, sctc, psqlsmt);
     sqlite3_finalize(psqlsmt);
-    
+
 //    检查数据库表cptfiles其项及其类型是否正确
     sql_quote = "PRAGMA table_info( cptfiles );";
     sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
@@ -737,9 +778,11 @@ void Proj::check_database(void){
     printf("Succeed In Checking Table Columns\n");
 #endif
     
+    sql::exec(psql, "BEGIN;");
     sql_quote = "SELECT project_name FROM projfile;";
     sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
     sqlite3_step(psqlsmt);
+    sql::exec(psql, "COMMIT;");
     string tname = (char *)sqlite3_column_text(psqlsmt, 0);
     if(name != tname){
 #ifdef DEBUG
@@ -748,6 +791,8 @@ void Proj::check_database(void){
         throw "database conflict";
     }
     sqlite3_finalize(psqlsmt);
+    
+    
 #ifdef DEBUG
     printf("Succeed In Checking Project Information\n");
 #endif
@@ -755,7 +800,9 @@ void Proj::check_database(void){
 }
 
 void Proj::check_table(int cnum,vector<check_table_column> sctc,sqlite3_stmt *psqlsmt){
+    sql::exec(psql, "BEGIN;");
     sqlite3_step(psqlsmt);
+    sql::exec(psql, "COMMIT;");
     int tcnum = sqlite3_data_count(psqlsmt);
     if(tcnum != 6){
 #ifdef DEBUG
@@ -775,7 +822,9 @@ void Proj::check_table(int cnum,vector<check_table_column> sctc,sqlite3_stmt *ps
         if(tctc.name != sctc[i-1].name || tctc.type != sctc[i-1].type || tctc.notnull != sctc[i-1].notnull || tctc.pk != sctc[i-1].pk){
             throw "table abnormal";
         }
+        sql::exec(psql, "BEGIN;");
         sqlite3_step(psqlsmt);
+        sql::exec(psql, "COMMIT;");
     }
 }
 
@@ -1093,12 +1142,14 @@ void Proj::UpdateProcess(void){
     CheckCptInfo();
     BuildFuncIndex();
     
+    sql::exec(psql, "BEGIN;");
 //    编译新增源文件并将记录添加到数据库中
 //    查找最大id
     string sql_quote2 = "SELECT * FROM srcfiles ORDER BY id DESC limit 0,1;";
     sqlite3_stmt *psqlsmt2;
     sqlite3_prepare(psql, sql_quote2.data(), -1, &psqlsmt2, &pzTail);
     int rtn = sqlite3_step(psqlsmt2);
+    sql::exec(psql, "COMMIT;");
     if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
         
     }
@@ -1109,6 +1160,7 @@ void Proj::UpdateProcess(void){
     }
     int last_id = sqlite3_column_int(psqlsmt2, 0);
     sqlite3_finalize(psqlsmt2);
+    
     sql::insert_info(psql, &psqlsmt2, "srcfiles", {
         {"id","?1"},
         {"name","?2"},
@@ -1116,8 +1168,10 @@ void Proj::UpdateProcess(void){
         {"md5","?4"}
     });
     for(auto usrc : used_srcfiles){
+        sql::exec(psql, "BEGIN;");
         sqlite3_bind_text(psqlsmt, 1, usrc.first.data(), -1, SQLITE_TRANSIENT);
         int rtn = sqlite3_step(psqlsmt);
+        sql::exec(psql, "COMMIT;");
         if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
             
         }
@@ -1126,9 +1180,12 @@ void Proj::UpdateProcess(void){
             int errorcode =  sqlite3_extended_errcode(psql);
             printf("\033[31mSQL Error: [%d]%s\n\033[0m",errorcode,error);
         }
+        
+        
         int if_find = sqlite3_column_int(psqlsmt, 0);
         if(!if_find){
             compile_srcfile(usrc.first, src_paths[usrc.second]);
+            sql::exec(psql, "BEGIN;");
             sqlite3_bind_int(psqlsmt2, 1, ++last_id);
             sqlite3_bind_text(psqlsmt2, 2, usrc.first.data(), -1, SQLITE_TRANSIENT);
             sqlite3_bind_text(psqlsmt2, 3, src_paths[usrc.second].data(), -1, SQLITE_TRANSIENT);
@@ -1137,6 +1194,7 @@ void Proj::UpdateProcess(void){
             sqlite3_bind_text(psqlsmt2, 4, md5.data(), -1, SQLITE_TRANSIENT);
 //            添加入口函数
             int rtn = sqlite3_step(psqlsmt2);
+            sql::exec(psql, "COMMIT;");
             if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
                 
             }
@@ -1147,6 +1205,7 @@ void Proj::UpdateProcess(void){
             }
             sqlite3_reset(psqlsmt2);
             sqlite3_clear_bindings(psqlsmt2);
+            
         }
         sqlite3_reset(psqlsmt);
         sqlite3_clear_bindings(psqlsmt);
@@ -1154,9 +1213,11 @@ void Proj::UpdateProcess(void){
     sqlite3_finalize(psqlsmt);
     sqlite3_finalize(psqlsmt2);
     
+    sql::exec(psql, "BEGIN;");
     sql_quote2 = "SELECT * FROM libfiles ORDER BY id DESC limit 0,1;";
     sqlite3_prepare(psql, sql_quote2.data(), -1, &psqlsmt2, &pzTail);
     rtn = sqlite3_step(psqlsmt2);
+    sql::exec(psql, "COMMIT;");
     if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
         
     }
@@ -1167,16 +1228,22 @@ void Proj::UpdateProcess(void){
     }
     last_id = sqlite3_column_int(psqlsmt2, 0);
     sqlite3_finalize(psqlsmt2);
+    
+    
+    
     sql::insert_info(psql, &psqlsmt2, "libfiles", {
         {"id","?1"},
         {"name","?2"},
         {"content","?3"}
     });
     for(auto lib : lib_index){
+        
+        sql::exec(psql, "BEGIN;");
         sql_quote = "SELECT count(*) FROM libfiles WHERE name = ?1";
         sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
         sqlite3_bind_text(psqlsmt, 1, lib.second.data(), -1, SQLITE_TRANSIENT);
         int rtn = sqlite3_step(psqlsmt);
+        sql::exec(psql, "COMMIT;");
         if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
             int if_find = sqlite3_column_int(psqlsmt, 0);
             sqlite3_finalize(psqlsmt);
@@ -1188,11 +1255,12 @@ void Proj::UpdateProcess(void){
             printf("\033[31mSQL Error: [%d]%s\n\033[0m",errorcode,error);
             throw error;
         }
-        
+        sql::exec(psql, "BEGIN;");
         sqlite3_bind_int(psqlsmt2, 1, ++last_id);
         sqlite3_bind_text(psqlsmt2, 2, lib.second.data(), -1, SQLITE_TRANSIENT);
 //        添加动态链接库
         rtn = sqlite3_step(psqlsmt2);
+        sql::exec(psql, "COMMIT;");
         if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
             
         }
@@ -1214,8 +1282,10 @@ void Proj::UpdateProcess(void){
     sqlite3_prepare(psql, sql_quote2.data(), -1, &psqlsmt2, &pzTail);
     
     for(auto usrc : used_srcfiles){
+        sql::exec(psql, "BEGIN;");
         sqlite3_bind_text(psqlsmt, 1, usrc.first.data(), -1, SQLITE_TRANSIENT);
         int rtn = sqlite3_step(psqlsmt);
+        sql::exec(psql, "COMMIT;");
         if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
             
         }
@@ -1230,11 +1300,14 @@ void Proj::UpdateProcess(void){
         ComputeFile(tsrc_file.data(), tmd5);
         if(dmd5 != tmd5){
             compile_srcfile(usrc.first, src_paths[usrc.second]);
+            
+            sql::exec(psql, "BEGIN;");
 //            更新md5
             sqlite3_bind_text(psqlsmt2, 1, tmd5.data(), -1, SQLITE_TRANSIENT);
             sqlite3_bind_text(psqlsmt2, 2, usrc.first.data(), -1, SQLITE_TRANSIENT);
             
             int rtn = sqlite3_step(psqlsmt2);
+            sql::exec(psql, "COMMIT;");
             if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
                 
             }
@@ -1258,8 +1331,10 @@ void Proj::UpdateProcess(void){
     sql_quote = "SELECT count(*) FROM functions WHERE name = ?1;";
     sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
     for(auto func : func_index){
+        sql::exec(psql, "BEGIN;");
         sqlite3_bind_text(psqlsmt, 1, func.first.data(), -1, SQLITE_TRANSIENT);
         int rtn = sqlite3_step(psqlsmt);
+        sql::exec(psql, "COMMIT;");
         
         if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
             int if_find = sqlite3_column_int(psqlsmt, 0);
@@ -1285,8 +1360,11 @@ void Proj::UpdateProcess(void){
 //    检查更新参数列表
     for(auto func : func_index){
         sql_quote = "SELECT * FROM fargs_" + func.first+";";
+        
+        sql::exec(psql, "BEGIN;");
         sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
         int rtn = sqlite3_step(psqlsmt);
+        sql::exec(psql, "COMMIT;");
         if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
             
         }
@@ -1318,7 +1396,9 @@ void Proj::UpdateProcess(void){
                 break;
             }
             idx++;
+            sql::exec(psql, "BEGIN;");
             sqlite3_step(psqlsmt);
+            sql::exec(psql, "COMMIT;");
         }
         idx = 0;
         for(auto farg_out : func.second->fargs_out.find(func.first)->second){
@@ -1339,7 +1419,9 @@ void Proj::UpdateProcess(void){
                 break;
             }
             idx++;
+            sql::exec(psql, "BEGIIN;");
             sqlite3_step(psqlsmt);
+            sql::exec(psql, "COMMIT;");
         }
         sqlite3_finalize(psqlsmt);
         if(if_changed){
@@ -1347,8 +1429,10 @@ void Proj::UpdateProcess(void){
                 printf("\033[33mFunction Args Changed %s\n\033[0m",func.first.data());
 #endif
                 sql_quote2 = "DELETE FROM fargs_"+func.first+";";
+                sql::exec(psql, "BEGIN;");
                 sqlite3_prepare(psql, sql_quote2.data(), -1, &psqlsmt2, &pzTail);
                 sqlite3_step(psqlsmt2);
+                sql::exec(psql, "COMMIT;");
                 sqlite3_finalize(psqlsmt2);
                 write_args_info_no_create_table(func.first,func.second);
             }
@@ -1356,8 +1440,10 @@ void Proj::UpdateProcess(void){
     }
     
     sql_quote = "DELETE FROM cptfiles";
+    sql::exec(psql, "BEGIN;");
     sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
     rtn = sqlite3_step(psqlsmt);
+    sql::exec(psql, "COMMIT;");
     if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
         
     }
@@ -1370,8 +1456,10 @@ void Proj::UpdateProcess(void){
     write_cpt_info();
     
     sql_quote = "DELETE FROM projfile";
+    sql::exec(psql, "BEGIN;");
     sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
     rtn = sqlite3_step(psqlsmt);
+    sql::exec(psql, "COMMIT;");
     if(rtn == SQLITE_DONE || rtn == SQLITE_ROW){
         
     }

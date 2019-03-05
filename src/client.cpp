@@ -18,6 +18,8 @@ Client::Client(int port, string send_ip,int send_port):socket(port),send_socket(
     sqlite3_stmt *psqlsmt;
     const char *pzTail;
     sqlite3_open("info.db", &psql);
+    
+    sql::exec(psql, "BEGIN DEFERRED;");
     string sql_quote = "select name,tag,msqes_key from client_info where rowid = 1;";
     sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
     sqlite3_step(psqlsmt);
@@ -25,6 +27,8 @@ Client::Client(int port, string send_ip,int send_port):socket(port),send_socket(
     tag = (const char *)sqlite3_column_text(psqlsmt, 1);
     sqe_key = (const char *)sqlite3_column_text(psqlsmt, 2);
     sqlite3_finalize(psqlsmt);
+    sql::exec(psql, "COMMIT;");
+    
 }
 
 //客户端请求接收守护进程

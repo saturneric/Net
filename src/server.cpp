@@ -291,7 +291,7 @@ void Client::SendRawData(raw_data *trdt){
 
 int Server::SentRawdata(struct raw_data *trdt){
 //    对大包进行拆分发送
-	int rtn = 0;
+	ssize_t rtn = 0;
     if(trdt->msg_size > 256){
         uint64_t aidx = 0,bidx = 0;
         int64_t alls = trdt->msg_size;
@@ -317,7 +317,7 @@ int Server::SentRawdata(struct raw_data *trdt){
 	else {
 		rtn = send_socket.SendRAW(trdt->msg, trdt->msg_size);
 	}
-    return rtn;
+    return (int)rtn;
 }
 
 void net_box::FreeNetBox(void){
@@ -648,6 +648,7 @@ SQEServer::SQEServer(int port):Server(port){
 
     sqlite3_stmt *psqlsmt;
     const char *pzTail;
+    sql::exec(psql, "BEGIN;");
 //    从数据库获得服务器的公私钥及服务器名
     string sql_quote = "select sqes_public,sqes_private,name from server_info where rowid = 1;";
     sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
@@ -662,17 +663,20 @@ SQEServer::SQEServer(int port):Server(port){
     memcpy(&prc, tbyt, sizeof(private_key_class));
 	name = (const char *)sqlite3_column_blob(psqlsmt, 2);
 	sqlite3_finalize(psqlsmt);
+    sql::exec(psql, "COMMIT;");
 
 	//打印关键信息
 	error::printSuccess("Server Name: "+name);
 	error::printSuccess("Listen Port: " + std::to_string(port));
-
+    sql::exec(psql, "BEGIN;");
 	sql_quote = "select count(name) from sqlite_master where name = \"register_info\"";
 	sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
 	if (sqlite3_step(psqlsmt) != SQLITE_ROW) {
 		sql::printError(psql);
+        sql::exec(psql, "COMMIT;");
 		throw "database is abnormal";
 	}
+    sql::exec(psql, "COMMIT;");
 	int if_find = sqlite3_column_int(psqlsmt,0);
 	if (!if_find) {
 		sql::table_create(psql, "register_info", {
@@ -689,6 +693,7 @@ SQEServer::SQEServer(int port):Server(port){
 		error::printInfo("create table register_info.");
 	}
 	sqlite3_finalize(psqlsmt);
+    
 }
 
 void SQEServer::Packet2Request(packet &pkt, request &req){
@@ -863,7 +868,7 @@ void SQEServer::ProcessRequset(void){
 						pclr->t_addr.SetPort(sqlite3_column_int(psqlsmt, 6));
 						pclr->psql = psql;
 						memcpy((void *)pclr->key.GetKey(), sqlite3_column_blob(psqlsmt, 3), sizeof(uint64_t) * 4);
-						printf("Login successfully %s[%s]:%s\n", pclr->name.data(), pclr->tag.data());
+						printf("Login successfully %s[%s]\n", pclr->name.data(), pclr->tag.data());
 
 						//注册客户端联络守护进程
 						clock_register *pncr = new clock_register();
@@ -1253,7 +1258,7 @@ void *clientListener(void *args){
 			free(buff);
 		}
 		else if(size < 0){
-			pcltl->if_connected == false;
+			pcltl->if_connected = false;
 			break;
 		}
 		usleep(1000);

@@ -71,7 +71,9 @@ namespace sql {
         }
         sql_quote += ");";
         //        执行SQL语句
+        sql::exec(psql, "BEGIN;");
         SQLCallBack *pscb = sql_exec(psql, sql_quote);
+        sql::exec(psql, "COMMIT;");
         if(pscb->sql_rtn != SQLITE_OK){
 #ifdef DEBUG
             printf("[Error]Fail To Create Table %s\n",name.data());
@@ -134,6 +136,10 @@ namespace sql {
             int errorcode =  sqlite3_extended_errcode(psql);
             printf("\033[31mSQL Error: [%d]%s\n\033[0m",errorcode,error);
         }
+    }
+    
+    int exec(sqlite3 *psql, string sql){
+        return sqlite3_exec(psql, sql.data(), NULL, NULL, NULL);
     }
     
 }

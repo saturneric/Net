@@ -41,11 +41,13 @@ void getSQEPublicKey(respond *pres,void *args){
         sqlite3 *psql = (sqlite3 *)args;
         sqlite3_stmt *psqlsmt;
         const char *pzTail;
+        sql::exec(psql, "BEGIN;");
         string sql_quote = "update client_info set msqes_rsa_public = ?1 where rowid = 1;";
         sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
         sqlite3_bind_blob(psqlsmt, 1, npbc, sizeof(public_key_class), SQLITE_TRANSIENT);
         sqlite3_step(psqlsmt);
         sqlite3_finalize(psqlsmt);
+        sql::exec(psql, "COMMIT;");
         if_wait = 0;
     }
     else if_wait = -1;
@@ -99,10 +101,11 @@ void registerSQECallback(respond *pres,void *args){
 					sqlite3_stmt *psqlsmt;
 					const char *pzTail;
 					string sql_quote = "delete from client_register_info;";
-					
+					sql::exec(psql, "BEGIN;");
 					sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
 					sqlite3_step(psqlsmt);
 					sqlite3_finalize(psqlsmt);
+                    sql::exec(psql, "COMMIT;");
 				}
 			}
             if_wait = 0;
@@ -163,9 +166,9 @@ void *connectionDeamon(void *args){
 				if (!memcmp(pcntl->write_buff, "SDAT", sizeof(uint32_t))) {
 					uint32_t nsrwd_size = 0;
 					Byte buff[BUFSIZ];
-					memcpy(&nsrwd_size, pcntl->write_buff + sizeof(uint32_t), sizeof(uint32_t));
-					if (!memcmp(pcntl->write_buff + 3 * sizeof(uint32_t) + nsrwd_size, "TADS", sizeof(uint32_t))) {
-						memcpy(buff, pcntl->write_buff + 3 * sizeof(uint32_t), nsrwd_size);
+					memcpy(&nsrwd_size, ((Byte *)pcntl->write_buff + sizeof(uint32_t)), sizeof(uint32_t));
+					if (!memcmp((Byte *)pcntl->write_buff + 3 * sizeof(uint32_t) + nsrwd_size, "TADS", sizeof(uint32_t))) {
+						memcpy(buff, (Byte *)pcntl->write_buff + 3 * sizeof(uint32_t), nsrwd_size);
 						send(pcntl->data_sfd, buff, nsrwd_size, 0);
 					}
 					else error::printError("buffer error.");
@@ -307,6 +310,7 @@ void *clientServiceDeamon(void *arg) {
 		pthread_attr_destroy(&attr);
 		usleep(1000);
 	}
+    pthread_exit(NULL);
 }
 
 void gets_s(char *buff, uint32_t size) {

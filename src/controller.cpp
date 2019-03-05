@@ -443,7 +443,7 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
 
 		//等待广场服务器回应
         while (if_wait == 1) {
-            sleep(10);
+            usleep(1000);
         }
         if(!if_wait){
 #ifdef DEBUG
@@ -584,6 +584,7 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
 		//成功注册
 		if (!if_wait) {
 			sqlite3_stmt *psqlsmt;
+            sql::exec(psql, "BEGIN IMMEDIATE;");
 			sql::insert_info(psql, &psqlsmt, "client_register_info", {
 				{"name","?1"},
 				{"tag","?2"},
@@ -595,6 +596,7 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
 			sqlite3_bind_blob(psqlsmt, 3, nclt.post_key.GetKey(), sizeof(uint64_t) * 4, SQLITE_TRANSIENT);
 			sqlite3_step(psqlsmt);
 			sqlite3_finalize(psqlsmt);
+            sql::exec(psql, "COMMIT;");
 		}
 		else if (~!if_wait) {
 			error::printError("fail to do register.");
@@ -726,6 +728,7 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
 				}
 				else if (cmdstr == "info") {
 					sqlite3_open("info.db",&psql);
+                    sql::exec(psql, "BEGIN DEFERRED;");
 					string sql_quote = "SELECT * from client_register_info where rowid = 1;";
 					sqlite3_prepare(psql, sql_quote.data(), -1, &psqlsmt, &pzTail);
 					sqlite3_step(psqlsmt);
@@ -746,7 +749,8 @@ int client(string instruct, vector<string> &configs, vector<string> &lconfigs, v
 						error::printError("[NONE INFO]");
 					}
 					sqlite3_finalize(psqlsmt);
-
+                    sql::exec(psql, "COMMIT;");
+                    sqlite3_close(psql);
 				}
 				else if (cmdstr == "quit") {
 					//关闭所有打开的文件描述符

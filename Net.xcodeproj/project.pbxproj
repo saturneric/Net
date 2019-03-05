@@ -10,6 +10,7 @@
 		9227C804220D6E4D00AE694C /* model.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9227C803220D6E4D00AE694C /* model.cpp */; };
 		9227C85B220D702800AE694C /* controller.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9227C85A220D702800AE694C /* controller.cpp */; };
 		9227C860220DAD9B00AE694C /* aes.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9227C85F220DAD9B00AE694C /* aes.cpp */; };
+		92436CB7222E68C2000443B2 /* libsqlite3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 9277A18821FEB21D009C5F11 /* libsqlite3.dylib */; };
 		926E0965220B17FA00AD5D5B /* client.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 926E0964220B17FA00AD5D5B /* client.cpp */; };
 		9277A16021FD725F009C5F11 /* md5.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15421FD725F009C5F11 /* md5.cpp */; };
 		9277A16121FD725F009C5F11 /* cproj_cpt.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15521FD725F009C5F11 /* cproj_cpt.cpp */; };
@@ -18,7 +19,6 @@
 		9277A16621FD725F009C5F11 /* cpart.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15A21FD725F009C5F11 /* cpart.cpp */; };
 		9277A16721FD725F009C5F11 /* memory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15B21FD725F009C5F11 /* memory.cpp */; };
 		9277A16821FD725F009C5F11 /* clock.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15C21FD725F009C5F11 /* clock.cpp */; };
-		9277A18921FEB21D009C5F11 /* libsqlite3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 9277A18821FEB21D009C5F11 /* libsqlite3.dylib */; };
 		9277A18C220076EE009C5F11 /* sql.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A18A220076EE009C5F11 /* sql.cpp */; };
 		9277A190220079DB009C5F11 /* cproj_proj.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A18F220079DB009C5F11 /* cproj_proj.cpp */; };
 		92C34C272205C63A00AB38D3 /* server.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9277A15821FD725F009C5F11 /* server.cpp */; };
@@ -90,7 +90,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				9277A18921FEB21D009C5F11 /* libsqlite3.dylib in Frameworks */,
+				92436CB7222E68C2000443B2 /* libsqlite3.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

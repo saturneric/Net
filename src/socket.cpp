@@ -139,7 +139,7 @@ ssize_t SocketTCPClient::SendRAW(char *buff, unsigned long size){
 			
 
 			send(client_sfd, vbuff, 2 * sizeof(uint32_t) + nidx - idx + 1, 0);
-			int grtn = recv(client_sfd, gbuff, BUFSIZ,0);
+			ssize_t grtn = recv(client_sfd, gbuff, BUFSIZ,0);
 			if (grtn > 0 && !memcmp(gbuff, "DGET", sizeof(uint32_t)));
 			else {
 				return -1;

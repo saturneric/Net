@@ -41,6 +41,8 @@ namespace sql {
     string string_type(string str);
 //    输出错误信息
     void printError(sqlite3 *psql);
+//    执行SQL语句
+    int exec(sqlite3 *psql, string sql);
 }
 
 #endif /* sql_h */
